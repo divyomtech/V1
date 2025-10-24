@@ -43,6 +43,12 @@ const Header = () => {
                   <Button variant="ghost" size="icon" className="hidden md:flex"><User className="h-5 w-5" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      <User className="h-4 w-4 mr-2" />Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-destructive"><LogOut className="h-4 w-4 mr-2" />Logout</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -53,6 +59,8 @@ const Header = () => {
                     {getRoleBasedNav().map((item) => (
                       <Link key={item.href} to={item.href} className="flex items-center gap-2"><item.icon className="h-4 w-4" />{item.label}</Link>
                     ))}
+                    <DropdownMenuSeparator />
+                    <Link to="/profile" className="flex items-center gap-2"><User className="h-4 w-4" />Profile</Link>
                     <DropdownMenuSeparator />
                     <button onClick={signOut} className="text-destructive flex items-center gap-2 text-left"><LogOut className="h-4 w-4" />Logout</button>
                   </nav>
