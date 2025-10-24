@@ -87,34 +87,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password,
         options: {
           emailRedirectTo: redirectUrl,
-          data: { name }
+          data: { 
+            name,
+            requested_role: selectedRole // Store requested role in metadata
+          }
         }
       });
 
       if (error) throw error;
 
-      if (data.user && selectedRole !== 'customer') {
-        // Update role to owner or admin (requires admin approval for owner)
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({ role: selectedRole })
-          .eq('user_id', data.user.id);
-
-        if (roleError) throw roleError;
-
-        // Create owner profile if owner role
-        if (selectedRole === 'owner') {
-          const { error: ownerError } = await supabase
-            .from('owners_profile')
-            .insert({ user_id: data.user.id });
-          
-          if (ownerError) throw ownerError;
-        }
-      }
-
       toast({
         title: "Account created!",
-        description: "Welcome to He&She PG Booking",
+        description: selectedRole === 'owner' 
+          ? "Your owner account will be activated after admin approval"
+          : "Welcome to He&She PG Booking",
       });
 
       return { error: null };
