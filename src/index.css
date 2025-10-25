@@ -18,9 +18,9 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 10%;
 
     /* Primary red theme - OYO inspired */
-    --primary: 0 84% 50%;
+    --primary: 0 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 0 84% 45%;
+    --primary-hover: 0 100% 45%;
 
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 10%;
@@ -28,20 +28,20 @@ All colors MUST be HSL.
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 0 84% 95%;
-    --accent-foreground: 0 84% 50%;
+    --accent: 0 100% 95%;
+    --accent-foreground: 0 100% 50%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 0 84% 50%;
+    --ring: 0 100% 50%;
 
     --radius: 0.75rem;
     
     /* Custom design tokens */
-    --gradient-hero: linear-gradient(135deg, hsl(0 84% 50%), hsl(0 84% 40%));
+    --gradient-hero: linear-gradient(135deg, hsl(0 100% 50%), hsl(0 100% 40%));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98%));
     --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.08);
     --shadow-hover: 0 4px 16px hsl(0 0% 0% / 0.12);
@@ -74,9 +74,9 @@ All colors MUST be HSL.
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 0 84% 55%;
+    --primary: 0 100% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 0 84% 50%;
+    --primary-hover: 0 100% 50%;
 
     --secondary: 0 0% 16%;
     --secondary-foreground: 0 0% 98%;
@@ -85,16 +85,16 @@ All colors MUST be HSL.
     --muted-foreground: 0 0% 65%;
 
     --accent: 0 0% 16%;
-    --accent-foreground: 0 84% 55%;
+    --accent-foreground: 0 100% 55%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 0 84% 55%;
+    --ring: 0 100% 55%;
     
-    --gradient-hero: linear-gradient(135deg, hsl(0 84% 55%), hsl(0 84% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(0 100% 55%), hsl(0 100% 45%));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 12%), hsl(0 0% 14%));
     --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.3);
     --shadow-hover: 0 4px 16px hsl(0 0% 0% / 0.5);

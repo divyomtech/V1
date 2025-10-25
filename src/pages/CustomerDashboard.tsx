@@ -236,6 +236,13 @@ const CustomerDashboard = () => {
                     {area}
                   </button>
                 ))}
+                <button
+                  className="px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 bg-muted hover:bg-accent transition-all flex items-center gap-1"
+                  onClick={() => toast.info("Area suggestion feature coming soon!")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Suggest Area
+                </button>
               </div>
             </div>
           )}
@@ -272,10 +279,48 @@ const CustomerDashboard = () => {
 
         {/* Welcome Section - only show when no city selected */}
         {!selectedCity && (
-          <div className="px-4 py-6 border-b border-border">
-            <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.name || 'Guest'}!</h2>
-            <p className="text-muted-foreground text-sm">Find your perfect PG</p>
-          </div>
+          <>
+            <div className="px-4 py-6 border-b border-border">
+              <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.name || 'Guest'}!</h2>
+              <p className="text-muted-foreground text-sm">Find your perfect PG</p>
+            </div>
+
+            {/* About PGs Section */}
+            <div className="px-4 py-6 bg-gradient-to-br from-primary/5 via-background to-accent/20 border-b border-border">
+              <div className="max-w-2xl mx-auto">
+                <h3 className="text-xl font-bold mb-4 text-primary">Why Choose StaySecure PG?</h3>
+                <div className="grid gap-4">
+                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Home className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Verified Properties</h4>
+                      <p className="text-sm text-muted-foreground">All PGs are verified and inspected for quality and safety</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Prime Locations</h4>
+                      <p className="text-sm text-muted-foreground">PGs in top areas with easy access to work hubs and amenities</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Easy Booking</h4>
+                      <p className="text-sm text-muted-foreground">Simple booking process with instant confirmation</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Recent Bookings - only show when no city selected */}
