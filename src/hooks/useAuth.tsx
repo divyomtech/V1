@@ -37,6 +37,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const ensureRolePresent = async (u: User) => {
+    try {
+      const requested = (u.user_metadata?.requested_role as AppRole) || 'customer';
+      const { data: rows, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', u.id);
+
+      if (!error && rows && rows.length > 0) {
+        const current = rows[0].role as AppRole;
+        if (current !== requested && (requested === 'owner' || requested === 'customer')) {
+          // Prefer the requested role (e.g., promote to owner) and persist it
+          setRole(requested);
+          await supabase.from('user_roles').delete().eq('user_id', u.id);
+          await supabase
+            .from('user_roles')
+            .insert({ user_id: u.id, role: requested })
+            .single();
+        } else {
+          setRole(current);
+        }
+        return;
+      }
+
+      // No role found: derive from metadata and persist for future sessions
+      setRole(requested);
+      await supabase
+        .from('user_roles')
+        .insert({ user_id: u.id, role: requested })
+        .single();
+    } catch (_) {
+      // Ignore persistence errors; UI still uses derived role
+    }
+  };
+
   const refreshRole = async () => {
     if (user) {
       await fetchUserRole(user.id);
@@ -53,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           // Defer role fetch with setTimeout to avoid deadlock
           setTimeout(() => {
-            fetchUserRole(session.user.id);
+            ensureRolePresent(session.user);
           }, 0);
         } else {
           setRole(null);
@@ -69,7 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         setTimeout(() => {
-          fetchUserRole(session.user.id);
+          ensureRolePresent(session.user);
         }, 0);
       }
       setLoading(false);
