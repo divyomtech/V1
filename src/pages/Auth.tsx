@@ -62,114 +62,149 @@ const Auth = () => {
     }
   };
 
+  if (!isLogin) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold mb-4">He&She</h1>
+            <p className="text-lg text-muted-foreground">
+              Find your perfect PG — clean, safe, affordable
+            </p>
+          </div>
+
+          {/* Illustration Area */}
+          <div className="flex-1 flex items-center justify-center my-8">
+            <div className="w-full aspect-square max-w-xs bg-gradient-to-br from-primary/10 to-primary/5 rounded-3xl flex items-center justify-center">
+              <div className="text-center p-8">
+                <p className="text-6xl mb-4">🏠</p>
+                <p className="text-muted-foreground">Welcome to He&She PG</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sign Up Form */}
+          <div className="space-y-4 mb-8">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full Name"
+                className="h-12"
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+              
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="h-12"
+              />
+              {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+              
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="h-12"
+              />
+              {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+              
+              <div className="space-y-3">
+                <RadioGroup value={role} onValueChange={(v) => setRole(v as typeof role)}>
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border">
+                    <RadioGroupItem value="customer" id="customer" />
+                    <Label htmlFor="customer" className="font-normal cursor-pointer flex-1">Find a PG</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border">
+                    <RadioGroupItem value="owner" id="owner" />
+                    <Label htmlFor="owner" className="font-normal cursor-pointer flex-1">List my PG</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
+                Get Started
+              </Button>
+            </form>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center">
+            <button
+              onClick={() => setIsLogin(true)}
+              className="text-primary hover:underline font-medium"
+            >
+              Already have an account? Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">He&She PG Booking</CardTitle>
-          <CardDescription className="text-center">
-            {isLogin ? 'Sign in to your account' : 'Create a new account'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={isLogin ? 'login' : 'signup'} onValueChange={(v) => setIsLogin(v === 'login')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+    <div className="min-h-screen flex flex-col bg-background">
+      <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-5xl font-bold mb-4">He&She</h1>
+          <p className="text-lg text-muted-foreground">
+            Find your perfect PG — clean, safe, affordable
+          </p>
+        </div>
+
+        {/* Illustration Area */}
+        <div className="flex-1 flex items-center justify-center my-8">
+          <div className="w-full aspect-square max-w-xs bg-gradient-to-br from-primary/10 to-primary/5 rounded-3xl flex items-center justify-center">
+            <div className="text-center p-8">
+              <p className="text-6xl mb-4">👋</p>
+              <p className="text-muted-foreground">Welcome back!</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Login Form */}
+        <div className="space-y-4 mb-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="h-12"
+            />
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             
-            <TabsContent value="login">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                  />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                
-                <Button type="submit" className="w-full">
-                  Sign In
-                </Button>
-              </form>
-            </TabsContent>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="h-12"
+            />
+            {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Doe"
-                  />
-                  {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                  />
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>I want to</Label>
-                  <RadioGroup value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="customer" id="customer" />
-                      <Label htmlFor="customer" className="font-normal">Find a PG</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="owner" id="owner" />
-                      <Label htmlFor="owner" className="font-normal">List my PG</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                
-                <Button type="submit" className="w-full">
-                  Create Account
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
+              Login
+            </Button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center">
+          <button
+            onClick={() => setIsLogin(false)}
+            className="text-primary hover:underline font-medium"
+          >
+            Don't have an account? Sign Up
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
