@@ -1,4 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
+import CustomerDashboard from "./CustomerDashboard";
+import OwnerDashboard from "./OwnerDashboard";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import FeaturedPGs from "@/components/FeaturedPGs";
@@ -6,19 +8,22 @@ import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 
 const Index = () => {
-  const { role } = useAuth();
+  const { role, loading } = useAuth();
 
-  if (role === 'owner') {
+  if (loading) {
     return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="container py-12">
-          <h1 className="text-4xl font-bold mb-4">Owner Dashboard</h1>
-          <p className="text-muted-foreground">Manage your properties, bookings, and tenants.</p>
-        </div>
-        <Footer />
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
+  }
+
+  if (role === 'owner') {
+    return <OwnerDashboard />;
+  }
+
+  if (role === 'customer') {
+    return <CustomerDashboard />;
   }
 
   if (role === 'admin') {
@@ -34,6 +39,7 @@ const Index = () => {
     );
   }
 
+  // Default landing page for non-authenticated users
   return (
     <div className="min-h-screen">
       <Header />
