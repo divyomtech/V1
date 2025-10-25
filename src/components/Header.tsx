@@ -12,10 +12,11 @@ const Header = () => {
     if (role === 'owner') return [
       { label: 'Dashboard', href: '/', icon: LayoutDashboard },
       { label: 'My Properties', href: '/owner/properties', icon: Building2 },
+      { label: 'Bookings', href: '/owner/bookings', icon: Building2 },
     ];
     if (role === 'admin') return [{ label: 'Admin Dashboard', href: '/', icon: LayoutDashboard }];
     return [
-      { label: 'Search PGs', href: '/', icon: Home },
+      { label: 'Search PGs', href: '/search', icon: Home },
       { label: 'My Bookings', href: '/bookings', icon: Building2 },
     ];
   };

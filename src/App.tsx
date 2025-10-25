@@ -8,6 +8,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import Search from "./pages/Search";
+import PropertyDetail from "./pages/PropertyDetail";
+import Bookings from "./pages/Bookings";
+import OwnerProperties from "./pages/owner/Properties";
+import AddProperty from "./pages/owner/AddProperty";
+import OwnerBookings from "./pages/owner/Bookings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +35,36 @@ const App = () => (
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/search" element={
+              <ProtectedRoute>
+                <Search />
+              </ProtectedRoute>
+            } />
+            <Route path="/properties/:id" element={
+              <ProtectedRoute>
+                <PropertyDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/bookings" element={
+              <ProtectedRoute>
+                <Bookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/properties" element={
+              <ProtectedRoute>
+                <OwnerProperties />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/properties/add" element={
+              <ProtectedRoute>
+                <AddProperty />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/bookings" element={
+              <ProtectedRoute>
+                <OwnerBookings />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
