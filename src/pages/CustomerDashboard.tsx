@@ -299,13 +299,13 @@ const CustomerDashboard = () => {
                       <p className="text-sm text-muted-foreground">All PGs are verified and inspected for quality and safety</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="h-5 w-5 text-primary" />
+                  <div className="flex items-start gap-3 bg-primary text-primary-foreground p-4 rounded-lg shadow-md">
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-1">Prime Locations</h4>
-                      <p className="text-sm text-muted-foreground">PGs in top areas with easy access to work hubs and amenities</p>
+                      <h4 className="font-semibold mb-1">HE&SHE PG's - Prime Locations</h4>
+                      <p className="text-sm text-primary-foreground/90">Separate PGs for men and women in top areas with easy access to work hubs and amenities</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
