@@ -1,41 +1,57 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User } from 'lucide-react';
-import Header from '@/components/Header';
-
-interface ProfileData {
-  name: string;
-  phone: string;
-  city: string;
-  address: string;
-  profile_photo: string;
-}
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { User, Mail, Phone, MapPin, Building2, Save, Upload, Check, X, FileText, CreditCard, Shield, Bell, Lock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
-  const [profileData, setProfileData] = useState<ProfileData>({
-    name: '',
-    phone: '',
-    city: '',
-    address: '',
-    profile_photo: '',
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<any>({
+    name: "",
+    full_name: "",
+    display_name: "",
+    business_name: "",
+    phone: "",
+    phone_verified: false,
+    city: "",
+    address: "",
+    current_address: "",
+    permanent_address: "",
+    profile_photo: "",
+    avatar_url: "",
+    gender: "",
+    date_of_birth: "",
+    aadhar_front_url: "",
+    aadhar_back_url: "",
+    college_company_id_url: "",
+    pan_card_url: "",
+    gst_doc_url: "",
+    profile_verification_status: "pending",
+    about: ""
   });
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
+    if (!user) {
+      navigate("/auth");
+      return;
     }
-  }, [user]);
+    fetchProfile();
+  }, [user, navigate]);
 
   const fetchProfile = async () => {
     try {
@@ -48,158 +64,501 @@ const Profile = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setProfileData({
-          name: data.name || '',
-          phone: data.phone || '',
-          city: data.city || '',
-          address: data.address || '',
-          profile_photo: data.profile_photo || '',
+        const profileData: any = data;
+        setProfile({
+          name: profileData.name || "",
+          full_name: profileData.full_name || "",
+          display_name: profileData.display_name || "",
+          business_name: profileData.business_name || "",
+          phone: profileData.phone || "",
+          phone_verified: profileData.phone_verified || false,
+          city: profileData.city || "",
+          address: profileData.address || "",
+          current_address: profileData.current_address || "",
+          permanent_address: profileData.permanent_address || "",
+          profile_photo: profileData.profile_photo || "",
+          avatar_url: profileData.avatar_url || "",
+          gender: profileData.gender || "",
+          date_of_birth: profileData.date_of_birth || "",
+          aadhar_front_url: profileData.aadhar_front_url || "",
+          aadhar_back_url: profileData.aadhar_back_url || "",
+          college_company_id_url: profileData.college_company_id_url || "",
+          pan_card_url: profileData.pan_card_url || "",
+          gst_doc_url: profileData.gst_doc_url || "",
+          profile_verification_status: profileData.profile_verification_status || "pending",
+          about: profileData.about || ""
         });
       }
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
-      });
-    } finally {
-      setFetching(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user?.id,
-          ...profileData,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Profile updated successfully',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
-      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setProfileData({
-      ...profileData,
-      [e.target.name]: e.target.value,
-    });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user?.id,
+          name: profile.name || profile.full_name,
+          full_name: profile.full_name || profile.name,
+          display_name: profile.display_name,
+          business_name: profile.business_name,
+          phone: profile.phone,
+          city: profile.city,
+          address: profile.address,
+          current_address: profile.current_address,
+          permanent_address: profile.permanent_address,
+          gender: profile.gender,
+          date_of_birth: profile.date_of_birth,
+          about: profile.about,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: error.message,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (fetching) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center h-[80vh]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
+  const isOwner = role === 'owner';
+  const isCustomer = role === 'customer';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <User className="h-6 w-6" />
-              <CardTitle>Profile Details</CardTitle>
+      <main className="flex-1 container py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Profile</h1>
+              <p className="text-muted-foreground">Manage your account information</p>
             </div>
-            <CardDescription>
-              Update your personal information
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={profileData.name}
-                  onChange={handleChange}
-                  required
-                  placeholder="Enter your full name"
-                />
-              </div>
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={profileData.phone}
-                  onChange={handleChange}
-                  placeholder="Enter your phone number"
-                />
-              </div>
+          <Tabs defaultValue="basic" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
 
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  name="city"
-                  value={profileData.city}
-                  onChange={handleChange}
-                  placeholder="Enter your city"
-                />
-              </div>
+            {/* Basic Information Tab */}
+            <TabsContent value="basic" className="space-y-6">
+              {/* Profile Photo */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>{isOwner ? 'Business Profile' : 'Profile Picture'}</span>
+                    <Badge variant={profile.profile_verification_status === 'verified' ? 'default' : 'secondary'}>
+                      {profile.profile_verification_status === 'verified' ? (
+                        <><Check className="h-3 w-3 mr-1" /> Verified</>
+                      ) : (
+                        <><X className="h-3 w-3 mr-1" /> {profile.profile_verification_status}</>
+                      )}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center gap-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={profile.avatar_url || profile.profile_photo} />
+                    <AvatarFallback>
+                      {isOwner ? <Building2 className="h-12 w-12" /> : <User className="h-12 w-12" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <Button variant="outline">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Photo
+                    </Button>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {isOwner ? 'Upload your business logo or photo' : 'Upload a profile picture'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  name="address"
-                  value={profileData.address}
-                  onChange={handleChange}
-                  placeholder="Enter your address"
-                  rows={3}
-                />
-              </div>
+              {/* Owner-specific fields */}
+              {isOwner && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Business Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="display_name">Display Name</Label>
+                        <Input
+                          id="display_name"
+                          value={profile.display_name}
+                          onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+                          placeholder="Your name"
+                        />
+                      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profile_photo">Profile Photo URL</Label>
-                <Input
-                  id="profile_photo"
-                  name="profile_photo"
-                  type="url"
-                  value={profileData.profile_photo}
-                  onChange={handleChange}
-                  placeholder="Enter profile photo URL"
-                />
-              </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="business_name">Business Name</Label>
+                        <Input
+                          id="business_name"
+                          value={profile.business_name}
+                          onChange={(e) => setProfile({ ...profile, business_name: e.target.value })}
+                          placeholder="Your PG/Business name"
+                        />
+                      </div>
+                    </div>
 
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="about">About</Label>
+                      <Textarea
+                        id="about"
+                        value={profile.about}
+                        onChange={(e) => setProfile({ ...profile, about: e.target.value })}
+                        placeholder="Tell us about your business..."
+                        rows={4}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Personal Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="full_name">Full Name</Label>
+                      <Input
+                        id="full_name"
+                        value={profile.full_name || profile.name}
+                        onChange={(e) => setProfile({ ...profile, full_name: e.target.value, name: e.target.value })}
+                        placeholder="Enter your full name"
+                      />
+                    </div>
+
+                    {isCustomer && (
+                      <div className="space-y-2">
+                        <Label htmlFor="gender">Gender</Label>
+                        <Input
+                          id="gender"
+                          value={profile.gender}
+                          onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
+                          placeholder="Male/Female/Other"
+                        />
+                      </div>
+                    )}
+
+                    {isCustomer && (
+                      <div className="space-y-2">
+                        <Label htmlFor="date_of_birth">Date of Birth</Label>
+                        <Input
+                          id="date_of_birth"
+                          type="date"
+                          value={profile.date_of_birth}
+                          onChange={(e) => setProfile({ ...profile, date_of_birth: e.target.value })}
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="phone"
+                          value={profile.phone}
+                          onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                          placeholder="+91 98765 43210"
+                        />
+                        {profile.phone_verified ? (
+                          <Badge variant="default" className="shrink-0">
+                            <Check className="h-3 w-3 mr-1" /> Verified
+                          </Badge>
+                        ) : (
+                          <Button variant="outline" size="sm">Verify</Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        value={user?.email}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={profile.city}
+                        onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                        placeholder="Enter your city"
+                      />
+                    </div>
+                  </div>
+
+                  {isCustomer && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="current_address">Current Address</Label>
+                        <Textarea
+                          id="current_address"
+                          value={profile.current_address}
+                          onChange={(e) => setProfile({ ...profile, current_address: e.target.value })}
+                          placeholder="Enter your current address"
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="permanent_address">Permanent Address</Label>
+                        <Textarea
+                          id="permanent_address"
+                          value={profile.permanent_address}
+                          onChange={(e) => setProfile({ ...profile, permanent_address: e.target.value })}
+                          placeholder="Enter your permanent address"
+                          rows={2}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {!isCustomer && (
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Address</Label>
+                      <Textarea
+                        id="address"
+                        value={profile.address}
+                        onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                        placeholder="Enter your complete address"
+                        rows={3}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Role Badge */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Type</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="default" className="text-base px-4 py-2">
+                    {role === 'owner' ? 'Property Owner' : role === 'customer' ? 'Tenant' : 'User'}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Documents Tab */}
+            <TabsContent value="documents" className="space-y-6">
+              {isCustomer && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Identity Documents</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Aadhar Card</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                          <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground mb-2">Front Side</p>
+                          <Button variant="outline" size="sm">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload
+                          </Button>
+                        </div>
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                          <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground mb-2">Back Side</p>
+                          <Button variant="outline" size="sm">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>College/Company ID</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">Upload ID Proof</p>
+                        <Button variant="outline" size="sm">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {isOwner && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>KYC Documents</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>PAN Card</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">Upload PAN Card</p>
+                        <Button variant="outline" size="sm">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>GST Certificate (Optional)</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-2">Upload GST Document</p>
+                        <Button variant="outline" size="sm">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Bank Account Details</Label>
+                      <Input placeholder="Account Number" />
+                      <Input placeholder="IFSC Code" />
+                      <Input placeholder="Bank Name" />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Security Tab */}
+            <TabsContent value="security" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Change Password</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current_password">Current Password</Label>
+                    <Input id="current_password" type="password" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new_password">New Password</Label>
+                    <Input id="new_password" type="password" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm_password">Confirm New Password</Label>
+                    <Input id="confirm_password" type="password" />
+                  </div>
+                  <Button>
+                    <Lock className="h-4 w-4 mr-2" />
+                    Update Password
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Preferences</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Email Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive updates via email</p>
+                    </div>
+                    <input type="checkbox" defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">SMS Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive updates via SMS</p>
+                    </div>
+                    <input type="checkbox" defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Push Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive push notifications</p>
+                    </div>
+                    <input type="checkbox" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {isCustomer && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Privacy Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Hide Contact Information</p>
+                        <p className="text-sm text-muted-foreground">Don't show contact to other tenants</p>
+                      </div>
+                      <input type="checkbox" />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="border-destructive">
+                <CardHeader>
+                  <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="destructive">
+                    Delete Account
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 };

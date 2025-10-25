@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp } from "lucide-react";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings } from "lucide-react";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -15,9 +15,12 @@ const OwnerDashboard = () => {
     totalProperties: 0,
     activeBookings: 0,
     pendingRequests: 0,
-    monthlyRevenue: 0
+    monthlyRevenue: 0,
+    totalTenants: 0,
+    pendingPayments: 0
   });
   const [properties, setProperties] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,9 +31,10 @@ const OwnerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [propertiesRes, bookingsRes] = await Promise.all([
+      const [propertiesRes, bookingsRes, profileRes] = await Promise.all([
         supabase.from('properties').select('*').eq('owner_id', user?.id),
-        supabase.from('bookings').select('*, properties!inner(owner_id)').eq('properties.owner_id', user?.id)
+        supabase.from('bookings').select('*, properties!inner(owner_id)').eq('properties.owner_id', user?.id),
+        supabase.from('profiles').select('*').eq('id', user?.id).single()
       ]);
 
       if (propertiesRes.data) {
@@ -38,18 +42,33 @@ const OwnerDashboard = () => {
         setStats(prev => ({ ...prev, totalProperties: propertiesRes.data.length }));
       }
 
+      if (profileRes.data) {
+        setProfile(profileRes.data);
+      }
+
       if (bookingsRes.data) {
-        const activeBookings = bookingsRes.data.filter((b: any) => b.status === 'accepted' || b.status === 'requested');
+        const activeBookings = bookingsRes.data.filter((b: any) => 
+          b.status === 'accepted' || b.status === 'paid' || b.status === 'checked-in' || b.status === 'active'
+        );
         const pendingRequests = bookingsRes.data.filter((b: any) => b.status === 'requested');
+        const totalTenants = bookingsRes.data.filter((b: any) => 
+          b.status === 'checked-in' || b.status === 'active'
+        ).length;
+        const pendingPayments = bookingsRes.data.filter((b: any) => 
+          b.payment_status === 'pending'
+        ).length;
+        
         const monthlyRevenue = bookingsRes.data
-          .filter((b: any) => b.status === 'accepted')
-          .reduce((sum: number, b: any) => sum + (b.monthly_rent || 0), 0);
+          .filter((b: any) => b.status === 'active' || b.status === 'checked-in')
+          .reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
 
         setStats(prev => ({
           ...prev,
           activeBookings: activeBookings.length,
           pendingRequests: pendingRequests.length,
-          monthlyRevenue
+          monthlyRevenue,
+          totalTenants,
+          pendingPayments
         }));
       }
     } catch (error) {
@@ -63,10 +82,34 @@ const OwnerDashboard = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Owner Dashboard</h1>
-          <p className="text-muted-foreground">Manage your properties, bookings, and tenants</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Owner Dashboard</h1>
+            <p className="text-muted-foreground">Manage your properties, bookings, and tenants</p>
+          </div>
+          <Button variant="outline" onClick={() => navigate('/profile')}>
+            <User className="h-4 w-4 mr-2" />
+            View Profile
+          </Button>
         </div>
+
+        {/* Profile Status Banner */}
+        {profile && profile.profile_verification_status === 'pending' && (
+          <Card className="mb-6 border-orange-200 bg-orange-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="font-semibold text-orange-900">Profile Verification Pending</p>
+                  <p className="text-sm text-orange-700">Complete your profile verification to start receiving bookings</p>
+                </div>
+                <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate('/profile')}>
+                  Complete Now
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -86,8 +129,8 @@ const OwnerDashboard = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Bookings</p>
-                  <p className="text-2xl font-bold">{stats.activeBookings}</p>
+                  <p className="text-sm text-muted-foreground">Total Tenants</p>
+                  <p className="text-2xl font-bold">{stats.totalTenants}</p>
                 </div>
                 <Users className="h-8 w-8 text-primary" />
               </div>
@@ -117,31 +160,73 @@ const OwnerDashboard = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Bookings</p>
+                  <p className="text-2xl font-bold">{stats.activeBookings}</p>
+                </div>
+                <Calendar className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Payments</p>
+                  <p className="text-2xl font-bold">{stats.pendingPayments}</p>
+                </div>
+                <CreditCard className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/properties/add')}>
             <CardContent className="flex flex-col items-center justify-center p-6">
               <Plus className="h-8 w-8 mb-2 text-primary" />
-              <h3 className="font-semibold">Add Property</h3>
-              <p className="text-sm text-muted-foreground text-center">List a new PG</p>
+              <h3 className="font-semibold text-center">Add Property</h3>
             </CardContent>
           </Card>
 
           <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/properties')}>
             <CardContent className="flex flex-col items-center justify-center p-6">
               <Building2 className="h-8 w-8 mb-2 text-primary" />
-              <h3 className="font-semibold">My Properties</h3>
-              <p className="text-sm text-muted-foreground text-center">Manage listings</p>
+              <h3 className="font-semibold text-center">Properties</h3>
             </CardContent>
           </Card>
 
           <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/bookings')}>
             <CardContent className="flex flex-col items-center justify-center p-6">
               <Calendar className="h-8 w-8 mb-2 text-primary" />
-              <h3 className="font-semibold">Bookings</h3>
-              <p className="text-sm text-muted-foreground text-center">Handle requests</p>
+              <h3 className="font-semibold text-center">Bookings</h3>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/profile')}>
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <User className="h-8 w-8 mb-2 text-primary" />
+              <h3 className="font-semibold text-center">Profile</h3>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/payouts')}>
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <CreditCard className="h-8 w-8 mb-2 text-primary" />
+              <h3 className="font-semibold text-center">Payouts</h3>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support')}>
+            <CardContent className="flex flex-col items-center justify-center p-6">
+              <MessageSquare className="h-8 w-8 mb-2 text-primary" />
+              <h3 className="font-semibold text-center">Support</h3>
             </CardContent>
           </Card>
         </div>
@@ -177,10 +262,10 @@ const OwnerDashboard = () => {
                         <p className="text-sm text-muted-foreground">{property.city} • {property.locality}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold flex items-center gap-1">
+                  <div className="text-right">
+                      <p className="font-semibold flex items-center gap-1 justify-end">
                         <IndianRupee className="h-4 w-4" />
-                        {property.monthly_rent.toLocaleString()}
+                        {property.monthly_rent?.toLocaleString() || 0}
                       </p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
                         property.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
