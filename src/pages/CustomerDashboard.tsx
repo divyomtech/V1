@@ -4,7 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, Home, Calendar, User, MapPin, Plus, Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
 import bangaloreImg from "@/assets/cities/bangalore.jpg";
 import hyderabadImg from "@/assets/cities/hyderabad.jpg";
 import mumbaiImg from "@/assets/cities/mumbai.jpg";
@@ -50,6 +53,7 @@ const CustomerDashboard = () => {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [newCityName, setNewCityName] = useState("");
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -111,6 +115,15 @@ const CustomerDashboard = () => {
     }
   };
 
+  const handleSuggestCity = () => {
+    if (newCityName.trim()) {
+      toast.success(`Thank you! We'll consider adding ${newCityName} soon.`);
+      setNewCityName("");
+    } else {
+      toast.error("Please enter a city name");
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col pb-16">
       {/* Main Content */}
@@ -118,10 +131,41 @@ const CustomerDashboard = () => {
         <div className="min-h-full bg-background/95 backdrop-blur-sm">
           {/* Header Section */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold">StaySecure PG</h1>
-            <button className="p-2 hover:bg-accent rounded-lg transition-colors">
-              <Menu className="h-6 w-6" />
-            </button>
+            <h1 className="text-xl font-bold text-primary">StaySecure PG</h1>
+            <Sheet>
+              <SheetTrigger asChild>
+                <button className="p-2 hover:bg-accent rounded-lg transition-colors">
+                  <Menu className="h-6 w-6" />
+                </button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-3 mt-6">
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Customer care feature coming soon!")}>
+                    <Phone className="h-5 w-5 text-primary" />
+                    Customer Care
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Help center feature coming soon!")}>
+                    <HelpCircle className="h-5 w-5 text-primary" />
+                    Help Center
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Report feature coming soon!")}>
+                    <Flag className="h-5 w-5 text-primary" />
+                    Report an Issue
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Feedback feature coming soon!")}>
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Send Feedback
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => navigate('/profile')}>
+                    <Settings className="h-5 w-5 text-primary" />
+                    Settings
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
           {/* Cities Stories Section */}
@@ -143,14 +187,34 @@ const CustomerDashboard = () => {
                   <span className="text-xs font-medium">{city.name}</span>
                 </button>
               ))}
-              <button
-                className="flex flex-col items-center gap-2 flex-shrink-0"
-              >
-                <div className="w-16 h-16 rounded-full bg-muted hover:bg-accent flex items-center justify-center transition-all">
-                  <Plus className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <span className="text-xs font-medium">Add City</span>
-              </button>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button className="flex flex-col items-center gap-2 flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-muted hover:bg-accent flex items-center justify-center transition-all">
+                      <Plus className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <span className="text-xs font-medium">Add City</span>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="bottom">
+                  <SheetHeader>
+                    <SheetTitle>Suggest a New City</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col gap-4 mt-6">
+                    <p className="text-sm text-muted-foreground">
+                      Can't find your city? Let us know and we'll try to add it!
+                    </p>
+                    <Input
+                      placeholder="Enter city name"
+                      value={newCityName}
+                      onChange={(e) => setNewCityName(e.target.value)}
+                    />
+                    <Button onClick={handleSuggestCity} className="w-full">
+                      Submit Suggestion
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
 
@@ -263,45 +327,49 @@ const CustomerDashboard = () => {
       </main>
 
       {/* Bottom Navigation - Instagram Style */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         <div className="flex items-center justify-around h-16 max-w-screen-sm mx-auto">
           <button
             onClick={() => navigate('/')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors"
+            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
             <Home 
-              className={`h-6 w-6 ${isActive('/') ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`h-6 w-6 transition-colors ${isActive('/') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/') ? 'currentColor' : 'none'}
             />
+            {isActive('/') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
           
           <button
             onClick={() => navigate('/search')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors"
+            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
             <Search 
-              className={`h-6 w-6 ${isActive('/search') ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`h-6 w-6 transition-colors ${isActive('/search') ? 'text-primary' : 'text-muted-foreground'}`}
             />
+            {isActive('/search') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
           
           <button
             onClick={() => navigate('/bookings')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors"
+            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
             <Calendar 
-              className={`h-6 w-6 ${isActive('/bookings') ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`h-6 w-6 transition-colors ${isActive('/bookings') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/bookings') ? 'currentColor' : 'none'}
             />
+            {isActive('/bookings') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
           
           <button
             onClick={() => navigate('/profile')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors"
+            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
             <User 
-              className={`h-6 w-6 ${isActive('/profile') ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`h-6 w-6 transition-colors ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/profile') ? 'currentColor' : 'none'}
             />
+            {isActive('/profile') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
         </div>
       </nav>
