@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { z } from 'zod';
+import welcomeIllustration from '@/assets/welcome-illustration.png';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -16,7 +15,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState<'welcome' | 'login' | 'signup'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -33,7 +32,7 @@ const Auth = () => {
 
   const validateForm = () => {
     try {
-      authSchema.parse({ email, password, name: isLogin ? undefined : name });
+      authSchema.parse({ email, password, name: view === 'signup' ? name : undefined });
       setErrors({});
       return true;
     } catch (error) {
@@ -55,53 +54,86 @@ const Auth = () => {
     
     if (!validateForm()) return;
 
-    if (isLogin) {
+    if (view === 'login') {
       await signIn(email, password);
     } else {
       await signUp(email, password, name, role);
     }
   };
 
-  if (!isLogin) {
+  // Welcome Screen
+  if (view === 'welcome') {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full justify-between">
+          {/* Header */}
+          <div className="pt-4">
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              Find your perfect PG — clean, safe, affordable
+            </p>
+          </div>
+
+          {/* Illustration */}
+          <div className="flex-1 flex items-center justify-center">
+            <img 
+              src={welcomeIllustration} 
+              alt="Welcome to He&She PG" 
+              className="w-full max-w-[280px] h-auto"
+            />
+          </div>
+
+          {/* CTA and Links */}
+          <div className="space-y-6 pb-4">
+            <Button 
+              onClick={() => setView('signup')}
+              className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl"
+            >
+              Get Started
+            </Button>
+            
+            <div className="flex items-center justify-center gap-8">
+              <button
+                onClick={() => setView('login')}
+                className="text-foreground hover:text-primary font-medium text-base"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => setView('signup')}
+                className="text-foreground hover:text-primary font-medium text-base"
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Login Screen
+  if (view === 'login') {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-5xl font-bold mb-4">He&She</h1>
-            <p className="text-lg text-muted-foreground">
-              Find your perfect PG — clean, safe, affordable
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              Welcome back! Please login to continue
             </p>
           </div>
 
-          {/* Illustration Area */}
-          <div className="flex-1 flex items-center justify-center my-8">
-            <div className="w-full aspect-square max-w-xs bg-gradient-to-br from-primary/10 to-primary/5 rounded-3xl flex items-center justify-center">
-              <div className="text-center p-8">
-                <p className="text-6xl mb-4">🏠</p>
-                <p className="text-muted-foreground">Welcome to He&She PG</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Sign Up Form */}
-          <div className="space-y-4 mb-8">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Full Name"
-                className="h-12"
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-              
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="space-y-4 flex-1">
+            <div className="space-y-4">
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="h-12"
+                className="h-12 text-base"
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
               
@@ -110,73 +142,71 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="h-12"
+                className="h-12 text-base"
               />
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-              
-              <div className="space-y-3">
-                <RadioGroup value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border">
-                    <RadioGroupItem value="customer" id="customer" />
-                    <Label htmlFor="customer" className="font-normal cursor-pointer flex-1">Find a PG</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border">
-                    <RadioGroupItem value="owner" id="owner" />
-                    <Label htmlFor="owner" className="font-normal cursor-pointer flex-1">List my PG</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
-                Get Started
+            </div>
+            
+            <div className="pt-6">
+              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+                Login
               </Button>
-            </form>
-          </div>
+            </div>
+          </form>
 
           {/* Footer */}
-          <div className="text-center">
+          <div className="text-center mt-6">
             <button
-              onClick={() => setIsLogin(true)}
-              className="text-primary hover:underline font-medium"
+              onClick={() => setView('welcome')}
+              className="text-muted-foreground hover:text-primary font-medium"
             >
-              Already have an account? Login
+              ← Back
             </button>
+            <p className="mt-4 text-muted-foreground">
+              Don't have an account?{' '}
+              <button
+                onClick={() => setView('signup')}
+                className="text-primary hover:underline font-medium"
+              >
+                Sign Up
+              </button>
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
+  // Sign Up Screen
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-5xl font-bold mb-4">He&She</h1>
-          <p className="text-lg text-muted-foreground">
-            Find your perfect PG — clean, safe, affordable
+        <div className="mb-6">
+          <h1 className="text-5xl font-bold mb-3">He&She</h1>
+          <p className="text-base text-muted-foreground">
+            Create your account to get started
           </p>
         </div>
 
-        {/* Illustration Area */}
-        <div className="flex-1 flex items-center justify-center my-8">
-          <div className="w-full aspect-square max-w-xs bg-gradient-to-br from-primary/10 to-primary/5 rounded-3xl flex items-center justify-center">
-            <div className="text-center p-8">
-              <p className="text-6xl mb-4">👋</p>
-              <p className="text-muted-foreground">Welcome back!</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Login Form */}
-        <div className="space-y-4 mb-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Sign Up Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 flex-1">
+          <div className="space-y-4">
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full Name"
+              className="h-12 text-base"
+            />
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
-              className="h-12"
+              className="h-12 text-base"
             />
             {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             
@@ -185,24 +215,53 @@ const Auth = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              className="h-12"
+              className="h-12 text-base"
             />
             {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             
-            <Button type="submit" className="w-full h-12 text-base bg-primary hover:bg-primary/90">
-              Login
+            <div className="space-y-3 pt-2">
+              <Label className="text-base">I want to</Label>
+              <RadioGroup value={role} onValueChange={(v) => setRole(v as typeof role)}>
+                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                  <RadioGroupItem value="customer" id="customer" />
+                  <Label htmlFor="customer" className="font-normal cursor-pointer flex-1 text-base">
+                    Find a PG
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                  <RadioGroupItem value="owner" id="owner" />
+                  <Label htmlFor="owner" className="font-normal cursor-pointer flex-1 text-base">
+                    List my PG
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+          
+          <div className="pt-6">
+            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+              Get Started
             </Button>
-          </form>
-        </div>
+          </div>
+        </form>
 
         {/* Footer */}
-        <div className="text-center">
+        <div className="text-center mt-6">
           <button
-            onClick={() => setIsLogin(false)}
-            className="text-primary hover:underline font-medium"
+            onClick={() => setView('welcome')}
+            className="text-muted-foreground hover:text-primary font-medium"
           >
-            Don't have an account? Sign Up
+            ← Back
           </button>
+          <p className="mt-4 text-muted-foreground">
+            Already have an account?{' '}
+            <button
+              onClick={() => setView('login')}
+              className="text-primary hover:underline font-medium"
+            >
+              Login
+            </button>
+          </p>
         </div>
       </div>
     </div>
