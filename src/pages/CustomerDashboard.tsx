@@ -4,28 +4,39 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, Home, Calendar, User, MapPin } from "lucide-react";
+import { Search, Home, Calendar, User, MapPin, Plus, Menu } from "lucide-react";
+import bangaloreImg from "@/assets/cities/bangalore.jpg";
+import hyderabadImg from "@/assets/cities/hyderabad.jpg";
+import mumbaiImg from "@/assets/cities/mumbai.jpg";
+import delhiImg from "@/assets/cities/delhi.jpg";
+import chennaiImg from "@/assets/cities/chennai.jpg";
+import heroBg from "@/assets/hero-bg.jpg";
 
 const cities = [
   { 
     name: "Bangalore", 
-    areas: ["Koramangala", "HSR Layout", "Indiranagar", "Whitefield", "Electronic City", "BTM Layout"]
+    areas: ["Koramangala", "HSR Layout", "Indiranagar", "Whitefield", "Electronic City", "BTM Layout"],
+    image: bangaloreImg
   },
   { 
     name: "Hyderabad", 
-    areas: ["HITEC City", "Gachibowli", "Madhapur", "Banjara Hills", "Kondapur", "Kukatpally"]
+    areas: ["HITEC City", "Gachibowli", "Madhapur", "Banjara Hills", "Kondapur", "Kukatpally"],
+    image: hyderabadImg
   },
   { 
     name: "Mumbai", 
-    areas: ["Andheri", "Powai", "Borivali", "Thane", "Bandra", "Goregaon"]
+    areas: ["Andheri", "Powai", "Borivali", "Thane", "Bandra", "Goregaon"],
+    image: mumbaiImg
   },
   { 
     name: "Delhi", 
-    areas: ["Connaught Place", "Dwarka", "Rohini", "Saket", "Lajpat Nagar", "Karol Bagh"]
+    areas: ["Connaught Place", "Dwarka", "Rohini", "Saket", "Lajpat Nagar", "Karol Bagh"],
+    image: delhiImg
   },
   { 
     name: "Chennai", 
-    areas: ["OMR", "Anna Nagar", "T Nagar", "Velachery", "Tambaram", "Adyar"]
+    areas: ["OMR", "Anna Nagar", "T Nagar", "Velachery", "Tambaram", "Adyar"],
+    image: chennaiImg
   }
 ];
 
@@ -103,55 +114,67 @@ const CustomerDashboard = () => {
   return (
     <div className="min-h-screen flex flex-col pb-16">
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Header Section */}
-        <div className="sticky top-0 z-20 bg-background border-b border-border px-4 py-3">
-          <h1 className="text-xl font-bold">StaySecure PG</h1>
-        </div>
-
-        {/* Cities Stories Section */}
-        <div className="sticky top-[53px] z-10 bg-background border-b border-border px-4 py-3">
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            {cities.map((city) => (
-              <button
-                key={city.name}
-                onClick={() => handleCityClick(city.name)}
-                className="flex flex-col items-center gap-2 flex-shrink-0"
-              >
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
-                  selectedCity === city.name 
-                    ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2' 
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                }`}>
-                  {city.name.slice(0, 3).toUpperCase()}
-                </div>
-                <span className="text-xs font-medium">{city.name}</span>
-              </button>
-            ))}
+      <main className="flex-1 overflow-y-auto" style={{ backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+        <div className="min-h-full bg-background/95 backdrop-blur-sm">
+          {/* Header Section */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center justify-between">
+            <h1 className="text-xl font-bold">StaySecure PG</h1>
+            <button className="p-2 hover:bg-accent rounded-lg transition-colors">
+              <Menu className="h-6 w-6" />
+            </button>
           </div>
-        </div>
 
-        {/* Sub-locations Section */}
-        {selectedCity && selectedCityData && (
-          <div className="px-4 py-3 bg-accent/30 border-b border-border">
-            <h3 className="font-semibold mb-2">{selectedCity}</h3>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {selectedCityData.areas.map((area) => (
+          {/* Cities Stories Section */}
+          <div className="sticky top-[53px] z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {cities.map((city) => (
                 <button
-                  key={area}
-                  onClick={() => handleAreaClick(area)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 transition-all ${
-                    selectedArea === area
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-background text-foreground hover:bg-muted'
-                  }`}
+                  key={city.name}
+                  onClick={() => handleCityClick(city.name)}
+                  className="flex flex-col items-center gap-2 flex-shrink-0"
                 >
-                  {area}
+                  <div className={`w-16 h-16 rounded-full overflow-hidden flex items-center justify-center transition-all ${
+                    selectedCity === city.name 
+                      ? 'ring-2 ring-primary ring-offset-2' 
+                      : 'hover:ring-2 hover:ring-accent'
+                  }`}>
+                    <img src={city.image} alt={city.name} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-xs font-medium">{city.name}</span>
                 </button>
               ))}
+              <button
+                className="flex flex-col items-center gap-2 flex-shrink-0"
+              >
+                <div className="w-16 h-16 rounded-full bg-muted hover:bg-accent flex items-center justify-center transition-all">
+                  <Plus className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <span className="text-xs font-medium">Add City</span>
+              </button>
             </div>
           </div>
-        )}
+
+          {/* Sub-locations Section */}
+          {selectedCity && selectedCityData && (
+            <div className="px-4 py-3 bg-accent/30 border-b border-border">
+              <h3 className="font-semibold mb-2">{selectedCity}</h3>
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {selectedCityData.areas.map((area) => (
+                  <button
+                    key={area}
+                    onClick={() => handleAreaClick(area)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 transition-all ${
+                      selectedArea === area
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {area}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
         {/* Properties Section */}
         {properties.length > 0 && (
@@ -236,6 +259,7 @@ const CustomerDashboard = () => {
           )}
           </div>
         )}
+        </div>
       </main>
 
       {/* Bottom Navigation - Instagram Style */}
