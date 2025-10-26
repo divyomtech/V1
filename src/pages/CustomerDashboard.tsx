@@ -328,47 +328,64 @@ const CustomerDashboard = () => {
 
         {/* Recent Bookings - only show when no city selected */}
         {!selectedCity && (
-          <div className="px-4 py-4">
-          <h3 className="font-semibold text-lg mb-4">Recent Bookings</h3>
-          {loading ? (
-            <p className="text-center text-muted-foreground py-8">Loading...</p>
-          ) : bookings.length === 0 ? (
-            <Card className="text-center py-12">
-              <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground mb-4">No bookings yet</p>
-              <Button onClick={() => navigate('/search')} size="sm">
-                <Search className="h-4 w-4 mr-2" />
-                Search for PGs
-              </Button>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {bookings.map((booking: any) => (
-                <Card key={booking.id} className="p-4 hover:bg-accent/50 transition-colors cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Home className="h-10 w-10 text-muted-foreground" />
-                      <div>
-                        <h4 className="font-semibold">{booking.properties?.title}</h4>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {booking.properties?.city}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      booking.status === 'requested' ? 'bg-accent text-accent-foreground' :
-                      booking.status === 'accepted' ? 'bg-primary/10 text-primary' :
-                      booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {booking.status}
-                    </span>
-                  </div>
+          <div 
+            className="px-4 py-6 relative overflow-hidden"
+            style={{
+              backgroundImage: `linear-gradient(135deg, hsl(var(--primary) / 0.05) 0%, hsl(var(--accent) / 0.1) 100%)`,
+            }}
+          >
+            {/* Decorative background pattern */}
+            <div className="absolute inset-0 opacity-[0.03]" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }} />
+            
+            <div className="relative z-10">
+              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Recent Bookings
+              </h3>
+              {loading ? (
+                <p className="text-center text-muted-foreground py-8">Loading...</p>
+              ) : bookings.length === 0 ? (
+                <Card className="text-center py-12 bg-background/80 backdrop-blur-sm border-2 border-dashed">
+                  <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-4">No bookings yet</p>
+                  <Button onClick={() => navigate('/search')} size="sm" className="gap-2">
+                    <Search className="h-4 w-4" />
+                    Search for PGs
+                  </Button>
                 </Card>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {bookings.map((booking: any) => (
+                    <Card key={booking.id} className="p-4 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer bg-background/90 backdrop-blur-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                            <Home className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{booking.properties?.title}</h4>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {booking.properties?.city}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          booking.status === 'requested' ? 'bg-accent text-accent-foreground' :
+                          booking.status === 'accepted' ? 'bg-primary/10 text-primary' :
+                          booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
           </div>
         )}
         </div>
