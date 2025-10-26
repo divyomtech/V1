@@ -12,6 +12,7 @@ import Search from "./pages/Search";
 import PropertyDetail from "./pages/PropertyDetail";
 import Bookings from "./pages/Bookings";
 import Favorites from "./pages/Favorites";
+import RoommateMatch from "./pages/RoommateMatch";
 import OwnerProperties from "./pages/owner/Properties";
 import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
@@ -56,6 +57,11 @@ const App = () => (
             <Route path="/favorites" element={
               <ProtectedRoute>
                 <Favorites />
+              </ProtectedRoute>
+            } />
+            <Route path="/roommate-match" element={
+              <ProtectedRoute>
+                <RoommateMatch />
               </ProtectedRoute>
             } />
             <Route path="/owner/properties" element={

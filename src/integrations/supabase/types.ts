@@ -110,6 +110,41 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          last_message_at: string
+          owner_id: string
+          property_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          last_message_at?: string
+          owner_id: string
+          property_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          last_message_at?: string
+          owner_id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -199,6 +234,7 @@ export type Database = {
       messages: {
         Row: {
           content: string
+          conversation_id: string | null
           created_at: string
           from_user: string
           id: string
@@ -207,6 +243,7 @@ export type Database = {
         }
         Insert: {
           content: string
+          conversation_id?: string | null
           created_at?: string
           from_user: string
           id?: string
@@ -215,13 +252,22 @@ export type Database = {
         }
         Update: {
           content?: string
+          conversation_id?: string | null
           created_at?: string
           from_user?: string
           id?: string
           read?: boolean
           to_user?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       owners_profile: {
         Row: {
@@ -388,6 +434,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          virtual_tour_url: string | null
         }
         Insert: {
           address: string
@@ -410,6 +457,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          virtual_tour_url?: string | null
         }
         Update: {
           address?: string
@@ -432,6 +480,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          virtual_tour_url?: string | null
         }
         Relationships: []
       }
@@ -481,6 +530,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roommate_preferences: {
+        Row: {
+          age_range: string | null
+          bio: string | null
+          budget_max: number | null
+          budget_min: number | null
+          cleanliness_level: number | null
+          created_at: string
+          dietary_preference: string | null
+          drinking: boolean | null
+          id: string
+          interests: string[] | null
+          lifestyle: string[] | null
+          looking_for_roommate: boolean | null
+          occupation: string | null
+          pets: boolean | null
+          preferred_gender: string | null
+          preferred_locations: string[] | null
+          smoking: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age_range?: string | null
+          bio?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          cleanliness_level?: number | null
+          created_at?: string
+          dietary_preference?: string | null
+          drinking?: boolean | null
+          id?: string
+          interests?: string[] | null
+          lifestyle?: string[] | null
+          looking_for_roommate?: boolean | null
+          occupation?: string | null
+          pets?: boolean | null
+          preferred_gender?: string | null
+          preferred_locations?: string[] | null
+          smoking?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age_range?: string | null
+          bio?: string | null
+          budget_max?: number | null
+          budget_min?: number | null
+          cleanliness_level?: number | null
+          created_at?: string
+          dietary_preference?: string | null
+          drinking?: boolean | null
+          id?: string
+          interests?: string[] | null
+          lifestyle?: string[] | null
+          looking_for_roommate?: boolean | null
+          occupation?: string | null
+          pets?: boolean | null
+          preferred_gender?: string | null
+          preferred_locations?: string[] | null
+          smoking?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       rooms: {
         Row: {

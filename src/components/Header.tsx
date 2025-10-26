@@ -20,6 +20,7 @@ const Header = () => {
     return [
       { label: 'Search PGs', href: '/search', icon: Home },
       { label: 'Favorites', href: '/favorites', icon: Heart },
+      { label: 'Find Roommate', href: '/roommate-match', icon: User },
       { label: 'My Bookings', href: '/bookings', icon: Building2 },
     ];
   };

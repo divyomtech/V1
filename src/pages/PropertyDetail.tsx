@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
 import { PropertyReviews } from '@/components/PropertyReviews';
+import { VirtualTourViewer } from '@/components/VirtualTourViewer';
+import { ChatDialog } from '@/components/ChatDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +24,7 @@ import {
   Camera,
   Phone,
   Mail,
+  MessageCircle,
 } from 'lucide-react';
 
 interface PropertyData {
@@ -39,9 +42,11 @@ interface PropertyData {
   rules: string;
   available_from: string;
   owner_id: string;
+  virtual_tour_url?: string;
   profiles?: {
     name: string;
     phone: string;
+    profile_photo?: string;
   };
 }
 
@@ -62,6 +67,7 @@ const PropertyDetail = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -84,7 +90,7 @@ const PropertyDetail = () => {
       if (data) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('name, phone')
+          .select('name, phone, profile_photo')
           .eq('id', data.owner_id)
           .single();
         
@@ -252,6 +258,9 @@ const PropertyDetail = () => {
                   <TabsTrigger value="amenities">Amenities</TabsTrigger>
                   <TabsTrigger value="rules">House Rules</TabsTrigger>
                   <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                  {property.virtual_tour_url && (
+                    <TabsTrigger value="tour">Virtual Tour</TabsTrigger>
+                  )}
                 </TabsList>
 
                 <TabsContent value="details" className="mt-6">
@@ -336,6 +345,12 @@ const PropertyDetail = () => {
                 <TabsContent value="reviews" className="mt-6">
                   <PropertyReviews propertyId={property.id} />
                 </TabsContent>
+
+                {property.virtual_tour_url && (
+                  <TabsContent value="tour" className="mt-6">
+                    <VirtualTourViewer tourUrl={property.virtual_tour_url} />
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
 
@@ -353,7 +368,11 @@ const PropertyDetail = () => {
                       {property.profiles?.phone || 'Not available'}
                     </div>
                   </div>
-                  <Button className="w-full" onClick={() => handleBooking()}>
+                  <Button className="w-full" onClick={() => setChatOpen(true)}>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Chat with Owner
+                  </Button>
+                  <Button className="w-full" variant="outline" onClick={() => handleBooking()}>
                     Request Booking
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
@@ -365,6 +384,18 @@ const PropertyDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Chat Dialog */}
+      {property && (
+        <ChatDialog
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          propertyId={property.id}
+          ownerId={property.owner_id}
+          ownerName={property.profiles?.name || 'Owner'}
+          ownerPhoto={property.profiles?.profile_photo}
+        />
+      )}
     </div>
   );
 };
