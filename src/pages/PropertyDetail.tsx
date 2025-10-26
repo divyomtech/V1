@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
+import { PropertyReviews } from '@/components/PropertyReviews';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -250,6 +251,7 @@ const PropertyDetail = () => {
                   <TabsTrigger value="rooms">Rooms</TabsTrigger>
                   <TabsTrigger value="amenities">Amenities</TabsTrigger>
                   <TabsTrigger value="rules">House Rules</TabsTrigger>
+                  <TabsTrigger value="reviews">Reviews</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="details" className="mt-6">
@@ -329,6 +331,10 @@ const PropertyDetail = () => {
                       <p className="whitespace-pre-wrap">{property.rules || 'No specific rules mentioned.'}</p>
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                <TabsContent value="reviews" className="mt-6">
+                  <PropertyReviews propertyId={property.id} />
                 </TabsContent>
               </Tabs>
             </div>

@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "./ui/button";
-import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft } from "lucide-react";
+import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 
@@ -19,6 +19,7 @@ const Header = () => {
     if (role === 'admin') return [{ label: 'Admin Dashboard', href: '/', icon: LayoutDashboard }];
     return [
       { label: 'Search PGs', href: '/search', icon: Home },
+      { label: 'Favorites', href: '/favorites', icon: Heart },
       { label: 'My Bookings', href: '/bookings', icon: Building2 },
     ];
   };

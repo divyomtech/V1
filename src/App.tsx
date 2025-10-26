@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import Search from "./pages/Search";
 import PropertyDetail from "./pages/PropertyDetail";
 import Bookings from "./pages/Bookings";
+import Favorites from "./pages/Favorites";
 import OwnerProperties from "./pages/owner/Properties";
 import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
@@ -50,6 +51,11 @@ const App = () => (
             <Route path="/bookings" element={
               <ProtectedRoute>
                 <Bookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/favorites" element={
+              <ProtectedRoute>
+                <Favorites />
               </ProtectedRoute>
             } />
             <Route path="/owner/properties" element={
