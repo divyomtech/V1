@@ -401,8 +401,10 @@ export type Database = {
           emergency_contact_phone: string | null
           id: string
           languages_known: string[] | null
+          maintenance_reminders_enabled: boolean | null
           mother_tongue: string | null
           name: string
+          payment_reminders_enabled: boolean | null
           phone: string | null
           profile_photo: string | null
           updated_at: string
@@ -418,8 +420,10 @@ export type Database = {
           emergency_contact_phone?: string | null
           id: string
           languages_known?: string[] | null
+          maintenance_reminders_enabled?: boolean | null
           mother_tongue?: string | null
           name: string
+          payment_reminders_enabled?: boolean | null
           phone?: string | null
           profile_photo?: string | null
           updated_at?: string
@@ -435,8 +439,10 @@ export type Database = {
           emergency_contact_phone?: string | null
           id?: string
           languages_known?: string[] | null
+          maintenance_reminders_enabled?: boolean | null
           mother_tongue?: string | null
           name?: string
+          payment_reminders_enabled?: boolean | null
           phone?: string | null
           profile_photo?: string | null
           updated_at?: string
