@@ -9,10 +9,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search as SearchIcon, MapPin, IndianRupee, Heart, Wifi, Utensils, Camera, Grid3x3, List, Share2, Star } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search as SearchIcon, MapPin, IndianRupee, Heart, Wifi, Utensils, Camera, Grid3x3, List, Share2, Star, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useFavorites } from '@/hooks/useFavorites';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface Property {
   id: string;
@@ -24,6 +28,7 @@ interface Property {
   amenities: string[];
   photos: string[];
   deposit: number;
+  available_from: string;
 }
 
 interface Review {
@@ -43,6 +48,9 @@ const Search = () => {
   const [priceRange, setPriceRange] = useState([0, 50000]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [dateFrom, setDateFrom] = useState<Date>();
+  const [dateTo, setDateTo] = useState<Date>();
+  const [sortBy, setSortBy] = useState<'price_low' | 'price_high' | 'newest'>('newest');
 
   useEffect(() => {
     fetchProperties();
@@ -141,7 +149,13 @@ const Search = () => {
       selectedAmenities.length === 0 ||
       selectedAmenities.every(amenity => prop.amenities?.includes(amenity));
 
-    return matchesSearch && matchesPrice && matchesAmenities;
+    const matchesDate = !dateFrom || (prop.available_from && new Date(prop.available_from) >= dateFrom);
+
+    return matchesSearch && matchesPrice && matchesAmenities && matchesDate;
+  }).sort((a, b) => {
+    if (sortBy === 'price_low') return a.monthly_rent - b.monthly_rent;
+    if (sortBy === 'price_high') return b.monthly_rent - a.monthly_rent;
+    return 0; // newest - already sorted by default
   });
 
   return (
@@ -153,7 +167,7 @@ const Search = () => {
           
           {/* Search and Filters */}
           <div className="bg-card p-6 rounded-lg shadow-sm mb-6">
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div className="relative">
                 <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -176,6 +190,30 @@ const Search = () => {
                 </SelectContent>
               </Select>
 
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !dateFrom && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "PPP") : <span>Available from</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
               <div className="flex gap-2">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'outline'}
@@ -192,6 +230,21 @@ const Search = () => {
                   <List className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+
+            {/* Sort Options */}
+            <div className="mb-4">
+              <label className="text-sm font-medium mb-2 block">Sort By</label>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="price_low">Price: Low to High</SelectItem>
+                  <SelectItem value="price_high">Price: High to Low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Price Range Filter */}
@@ -243,6 +296,8 @@ const Search = () => {
                 setGenderFilter('all'); 
                 setPriceRange([0, 50000]);
                 setSelectedAmenities([]);
+                setDateFrom(undefined);
+                setSortBy('newest');
               }}>
                 Clear Filters
               </Button>
