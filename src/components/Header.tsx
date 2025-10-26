@@ -1,9 +1,10 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "./ui/button";
-import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart } from "lucide-react";
+import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart, Gift } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { NotificationBell } from "./NotificationBell";
 
 const Header = () => {
   const { user, role, signOut } = useAuth();
@@ -22,6 +23,7 @@ const Header = () => {
       { label: 'Favorites', href: '/favorites', icon: Heart },
       { label: 'Find Roommate', href: '/roommate-match', icon: User },
       { label: 'My Bookings', href: '/bookings', icon: Building2 },
+      { label: 'Referrals', href: '/referrals', icon: Gift },
     ];
   };
 
@@ -50,6 +52,7 @@ const Header = () => {
               ))}
             </nav>
             <div className="flex items-center gap-4">
+              <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="hidden md:flex"><User className="h-5 w-5" /></Button>

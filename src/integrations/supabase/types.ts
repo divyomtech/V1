@@ -269,6 +269,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          link: string | null
+          message: string
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message: string
+          read?: boolean | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       owners_profile: {
         Row: {
           admin_notes: string | null
@@ -425,12 +458,15 @@ export type Database = {
           description: string | null
           gender_preference: Database["public"]["Enums"]["gender_preference"]
           id: string
+          instant_booking: boolean | null
           locality: string | null
           location: unknown
           monthly_rent: number
+          nearby_amenities: Json | null
           owner_id: string
           photos: string[] | null
           rules: string | null
+          safety_score: number | null
           status: string
           title: string
           updated_at: string
@@ -448,12 +484,15 @@ export type Database = {
           description?: string | null
           gender_preference: Database["public"]["Enums"]["gender_preference"]
           id?: string
+          instant_booking?: boolean | null
           locality?: string | null
           location?: unknown
           monthly_rent: number
+          nearby_amenities?: Json | null
           owner_id: string
           photos?: string[] | null
           rules?: string | null
+          safety_score?: number | null
           status?: string
           title: string
           updated_at?: string
@@ -471,16 +510,73 @@ export type Database = {
           description?: string | null
           gender_preference?: Database["public"]["Enums"]["gender_preference"]
           id?: string
+          instant_booking?: boolean | null
           locality?: string | null
           location?: unknown
           monthly_rent?: number
+          nearby_amenities?: Json | null
           owner_id?: string
           photos?: string[] | null
           rules?: string | null
+          safety_score?: number | null
           status?: string
           title?: string
           updated_at?: string
           virtual_tour_url?: string | null
+        }
+        Relationships: []
+      }
+      property_comparisons: {
+        Row: {
+          created_at: string | null
+          id: string
+          property_ids: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          property_ids: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          property_ids?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          claimed_at: string | null
+          created_at: string | null
+          id: string
+          referee_id: string | null
+          referral_code: string
+          referrer_id: string
+          reward_amount: number | null
+          reward_claimed: boolean | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string | null
+          id?: string
+          referee_id?: string | null
+          referral_code: string
+          referrer_id: string
+          reward_amount?: number | null
+          reward_claimed?: boolean | null
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string | null
+          id?: string
+          referee_id?: string | null
+          referral_code?: string
+          referrer_id?: string
+          reward_amount?: number | null
+          reward_claimed?: boolean | null
         }
         Relationships: []
       }

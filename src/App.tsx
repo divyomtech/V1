@@ -13,6 +13,8 @@ import PropertyDetail from "./pages/PropertyDetail";
 import Bookings from "./pages/Bookings";
 import Favorites from "./pages/Favorites";
 import RoommateMatch from "./pages/RoommateMatch";
+import CompareProperties from "./pages/CompareProperties";
+import Referrals from "./pages/Referrals";
 import OwnerProperties from "./pages/owner/Properties";
 import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
@@ -62,6 +64,12 @@ const App = () => (
             <Route path="/roommate-match" element={
               <ProtectedRoute>
                 <RoommateMatch />
+              </ProtectedRoute>
+            } />
+            <Route path="/compare" element={<CompareProperties />} />
+            <Route path="/referrals" element={
+              <ProtectedRoute>
+                <Referrals />
               </ProtectedRoute>
             } />
             <Route path="/owner/properties" element={

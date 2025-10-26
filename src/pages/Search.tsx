@@ -11,7 +11,8 @@ import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Search as SearchIcon, MapPin, IndianRupee, Heart, Wifi, Utensils, Camera, Grid3x3, List, Share2, Star, CalendarIcon } from 'lucide-react';
+import { Checkbox as CheckboxPrimitive } from '@/components/ui/checkbox';
+import { Search as SearchIcon, MapPin, IndianRupee, Heart, Wifi, Utensils, Camera, Grid3x3, List, Share2, Star, CalendarIcon, ArrowLeftRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -51,6 +52,7 @@ const Search = () => {
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
   const [sortBy, setSortBy] = useState<'price_low' | 'price_high' | 'newest'>('newest');
+  const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProperties();
@@ -158,6 +160,38 @@ const Search = () => {
     return 0; // newest - already sorted by default
   });
 
+  const toggleCompare = (propertyId: string) => {
+    setSelectedForCompare(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(propertyId)) {
+        newSet.delete(propertyId);
+      } else {
+        if (newSet.size >= 3) {
+          toast({
+            title: 'Maximum 3 properties',
+            description: 'You can compare up to 3 properties at once',
+            variant: 'destructive',
+          });
+          return prev;
+        }
+        newSet.add(propertyId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCompare = () => {
+    if (selectedForCompare.size < 2) {
+      toast({
+        title: 'Select at least 2 properties',
+        description: 'Please select at least 2 properties to compare',
+        variant: 'destructive',
+      });
+      return;
+    }
+    navigate(`/compare?ids=${Array.from(selectedForCompare).join(',')}`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -231,6 +265,16 @@ const Search = () => {
                 </Button>
               </div>
             </div>
+
+            {/* Compare Button */}
+            {selectedForCompare.size > 0 && (
+              <div className="mb-4">
+                <Button onClick={handleCompare} className="w-full">
+                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                  Compare {selectedForCompare.size} Properties
+                </Button>
+              </div>
+            )}
 
             {/* Sort Options */}
             <div className="mb-4">

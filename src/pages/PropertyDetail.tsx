@@ -6,6 +6,9 @@ import Header from '@/components/Header';
 import { PropertyReviews } from '@/components/PropertyReviews';
 import { VirtualTourViewer } from '@/components/VirtualTourViewer';
 import { ChatDialog } from '@/components/ChatDialog';
+import { ShareDialog } from '@/components/ShareDialog';
+import { NearbyAmenities } from '@/components/NearbyAmenities';
+import { SafetyScore } from '@/components/SafetyScore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +46,14 @@ interface PropertyData {
   available_from: string;
   owner_id: string;
   virtual_tour_url?: string;
+  safety_score?: number;
+  nearby_amenities?: {
+    metro?: string[];
+    hospital?: string[];
+    market?: string[];
+    school?: string[];
+  };
+  instant_booking?: boolean;
   profiles?: {
     name: string;
     phone: string;
@@ -94,7 +105,11 @@ const PropertyDetail = () => {
           .eq('id', data.owner_id)
           .single();
         
-        setProperty({ ...data, profiles: profileData });
+        setProperty({ 
+          ...data, 
+          profiles: profileData,
+          nearby_amenities: data.nearby_amenities as PropertyData['nearby_amenities']
+        });
       }
     } catch (error: any) {
       toast({
@@ -220,17 +235,30 @@ const PropertyDetail = () => {
             <div className="md:col-span-2">
               <div className="mb-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
-                    <div className="flex items-center text-muted-foreground">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h1 className="text-3xl font-bold">{property.title}</h1>
+                      <ShareDialog propertyId={property.id} title={property.title} />
+                    </div>
+                    <div className="flex items-center text-muted-foreground mb-2">
                       <MapPin className="h-4 w-4 mr-1" />
                       {property.address}, {property.locality}, {property.city}
                     </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline">
+                        {property.gender_preference === 'male' ? 'Boys Only' : 
+                         property.gender_preference === 'female' ? 'Girls Only' : 'Co-living'}
+                      </Badge>
+                      {property.safety_score && property.safety_score > 0 && (
+                        <SafetyScore score={property.safety_score} />
+                      )}
+                      {property.instant_booking && (
+                        <Badge className="bg-green-100 text-green-700">
+                          ⚡ Instant Booking
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <Badge variant="outline">
-                    {property.gender_preference === 'male' ? 'Boys Only' : 
-                     property.gender_preference === 'female' ? 'Girls Only' : 'Co-living'}
-                  </Badge>
                 </div>
 
                 <div className="flex gap-6 mb-6">
@@ -256,6 +284,7 @@ const PropertyDetail = () => {
                   <TabsTrigger value="details">Details</TabsTrigger>
                   <TabsTrigger value="rooms">Rooms</TabsTrigger>
                   <TabsTrigger value="amenities">Amenities</TabsTrigger>
+                  <TabsTrigger value="nearby">Nearby</TabsTrigger>
                   <TabsTrigger value="rules">House Rules</TabsTrigger>
                   <TabsTrigger value="reviews">Reviews</TabsTrigger>
                   {property.virtual_tour_url && (
@@ -329,6 +358,10 @@ const PropertyDetail = () => {
                       </div>
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                <TabsContent value="nearby" className="mt-6">
+                  <NearbyAmenities amenities={property.nearby_amenities || {}} />
                 </TabsContent>
 
                 <TabsContent value="rules" className="mt-6">
