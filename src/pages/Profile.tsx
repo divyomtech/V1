@@ -391,6 +391,100 @@ const Profile = () => {
                 </CardContent>
               </Card>
 
+              {/* Emergency Contact & Work Details for Customers */}
+              {isCustomer && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Emergency Contact Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="emergency_contact_name">Parent/Guardian Name</Label>
+                          <Input
+                            id="emergency_contact_name"
+                            value={profile.emergency_contact_name}
+                            onChange={(e) => setProfile({ ...profile, emergency_contact_name: e.target.value })}
+                            placeholder="Enter parent or guardian name"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="emergency_contact_phone">Emergency Contact Number</Label>
+                          <Input
+                            id="emergency_contact_phone"
+                            value={profile.emergency_contact_phone}
+                            onChange={(e) => setProfile({ ...profile, emergency_contact_phone: e.target.value })}
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="emergency_contact_address">Emergency Contact Address</Label>
+                        <Textarea
+                          id="emergency_contact_address"
+                          value={profile.emergency_contact_address}
+                          onChange={(e) => setProfile({ ...profile, emergency_contact_address: e.target.value })}
+                          placeholder="Enter emergency contact address"
+                          rows={2}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Work & Language Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="work_type">Type of Work</Label>
+                          <Input
+                            id="work_type"
+                            value={profile.work_type}
+                            onChange={(e) => setProfile({ ...profile, work_type: e.target.value })}
+                            placeholder="Student/Working Professional/Business"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="work_place">Work Place</Label>
+                          <Input
+                            id="work_place"
+                            value={profile.work_place}
+                            onChange={(e) => setProfile({ ...profile, work_place: e.target.value })}
+                            placeholder="Company/College name"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="mother_tongue">Mother Tongue</Label>
+                          <Input
+                            id="mother_tongue"
+                            value={profile.mother_tongue}
+                            onChange={(e) => setProfile({ ...profile, mother_tongue: e.target.value })}
+                            placeholder="Your native language"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="languages_known">Languages Known</Label>
+                          <Input
+                            id="languages_known"
+                            value={profile.languages_known?.join(', ')}
+                            onChange={(e) => setProfile({ ...profile, languages_known: e.target.value.split(',').map(lang => lang.trim()).filter(Boolean) })}
+                            placeholder="English, Hindi, Tamil"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
               {/* Role Badge */}
               <Card>
                 <CardHeader>
