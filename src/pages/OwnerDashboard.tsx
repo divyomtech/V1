@@ -8,7 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock } from "lucide-react";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -26,6 +29,11 @@ const OwnerDashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [reminders, setReminders] = useState({
+    paymentReminders: false,
+    maintenanceReminders: false
+  });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -48,6 +56,10 @@ const OwnerDashboard = () => {
 
       if (profileRes.data) {
         setProfile(profileRes.data);
+        setReminders({
+          paymentReminders: profileRes.data.payment_reminders_enabled || false,
+          maintenanceReminders: profileRes.data.maintenance_reminders_enabled || false
+        });
       }
 
       if (bookingsRes.data) {
@@ -106,6 +118,35 @@ const OwnerDashboard = () => {
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'cancelled': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleReminderToggle = async (type: 'payment' | 'maintenance', value: boolean) => {
+    try {
+      const field = type === 'payment' ? 'payment_reminders_enabled' : 'maintenance_reminders_enabled';
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [field]: value })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      setReminders(prev => ({
+        ...prev,
+        [`${type}Reminders`]: value
+      }));
+
+      toast({
+        title: "Reminder settings updated",
+        description: `${type === 'payment' ? 'Payment' : 'Maintenance'} reminders ${value ? 'enabled' : 'disabled'}`,
+      });
+    } catch (error) {
+      console.error('Error updating reminders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update reminder settings",
+        variant: "destructive"
+      });
     }
   };
 
@@ -274,6 +315,51 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Monthly Reminders */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Monthly Reminders
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-accent/20">
+                <div className="flex-1">
+                  <Label htmlFor="payment-reminders" className="text-base font-semibold cursor-pointer">
+                    Payment Reminders
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Get monthly notifications to remind tenants about upcoming rent payments
+                  </p>
+                </div>
+                <Switch
+                  id="payment-reminders"
+                  checked={reminders.paymentReminders}
+                  onCheckedChange={(checked) => handleReminderToggle('payment', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-accent/20">
+                <div className="flex-1">
+                  <Label htmlFor="maintenance-reminders" className="text-base font-semibold cursor-pointer">
+                    Property Maintenance Reminders
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Receive monthly alerts for routine property maintenance and inspections
+                  </p>
+                </div>
+                <Switch
+                  id="maintenance-reminders"
+                  checked={reminders.maintenanceReminders}
+                  onCheckedChange={(checked) => handleReminderToggle('maintenance', checked)}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Recent Bookings */}
         {recentBookings.length > 0 && (
