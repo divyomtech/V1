@@ -6,7 +6,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock } from "lucide-react";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -20,8 +22,10 @@ const OwnerDashboard = () => {
     pendingPayments: 0
   });
   const [properties, setProperties] = useState<any[]>([]);
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -32,8 +36,8 @@ const OwnerDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const [propertiesRes, bookingsRes, profileRes] = await Promise.all([
-        supabase.from('properties').select('*').eq('owner_id', user?.id),
-        supabase.from('bookings').select('*, properties!inner(owner_id)').eq('properties.owner_id', user?.id),
+        supabase.from('properties').select('*').eq('owner_id', user?.id).order('created_at', { ascending: false }),
+        supabase.from('bookings').select('*, properties!inner(owner_id, title), profiles!bookings_user_id_fkey(full_name)').eq('properties.owner_id', user?.id).order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').eq('id', user?.id).single()
       ]);
 
@@ -47,6 +51,8 @@ const OwnerDashboard = () => {
       }
 
       if (bookingsRes.data) {
+        setRecentBookings(bookingsRes.data.slice(0, 5));
+        
         const activeBookings = bookingsRes.data.filter((b: any) => 
           b.status === 'accepted' || b.status === 'paid' || b.status === 'checked-in' || b.status === 'active'
         );
@@ -75,6 +81,31 @@ const OwnerDashboard = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const filteredProperties = properties.filter(property =>
+    property.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    property.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    property.locality?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+      case 'inactive': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getBookingStatusColor = (status: string) => {
+    switch (status) {
+      case 'requested': return 'bg-blue-100 text-blue-800';
+      case 'accepted': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -186,6 +217,19 @@ const OwnerDashboard = () => {
           </Card>
         </div>
 
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search properties by name, city, or locality..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/properties/add')}>
@@ -231,50 +275,152 @@ const OwnerDashboard = () => {
           </Card>
         </div>
 
+        {/* Recent Bookings */}
+        {recentBookings.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Recent Booking Requests</span>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/owner/bookings')}>View All</Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentBookings.map((booking: any) => (
+                  <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-sm">{booking.profiles?.full_name || 'Guest'}</p>
+                        <p className="text-xs text-muted-foreground">{booking.properties?.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(booking.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={getBookingStatusColor(booking.status)}>
+                        {booking.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Properties List */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Your Properties</span>
+              <span>Your Properties ({filteredProperties.length})</span>
               <Button variant="ghost" size="sm" onClick={() => navigate('/owner/properties')}>View All</Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
               <p className="text-center text-muted-foreground py-8">Loading...</p>
-            ) : properties.length === 0 ? (
+            ) : filteredProperties.length === 0 ? (
               <div className="text-center py-8">
                 <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">No properties listed yet</p>
-                <Button onClick={() => navigate('/owner/properties/add')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Property
-                </Button>
+                <p className="text-muted-foreground mb-4">
+                  {searchTerm ? 'No properties match your search' : 'No properties listed yet'}
+                </p>
+                {!searchTerm && (
+                  <Button onClick={() => navigate('/owner/properties/add')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Property
+                  </Button>
+                )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {properties.slice(0, 3).map((property: any) => (
-                  <div key={property.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <Building2 className="h-8 w-8 text-muted-foreground" />
-                      <div>
-                        <h4 className="font-semibold">{property.title}</h4>
-                        <p className="text-sm text-muted-foreground">{property.city} • {property.locality}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredProperties.slice(0, 4).map((property: any) => {
+                  const firstImage = property.photos?.[0] || '/placeholder.svg';
+                  return (
+                    <div 
+                      key={property.id} 
+                      className="group border rounded-lg overflow-hidden hover:shadow-lg transition-all cursor-pointer"
+                      onClick={() => navigate(`/property/${property.id}`)}
+                    >
+                      <div className="relative h-48 overflow-hidden">
+                        <img 
+                          src={firstImage} 
+                          alt={property.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <Badge className={`absolute top-2 right-2 ${getStatusColor(property.status)}`}>
+                          {property.status}
+                        </Badge>
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-semibold text-lg mb-2 line-clamp-1">{property.title}</h4>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                          <MapPin className="h-4 w-4" />
+                          <span className="line-clamp-1">{property.city} • {property.locality}</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-4 text-sm">
+                            {property.sharing_type && (
+                              <div className="flex items-center gap-1">
+                                <Bed className="h-4 w-4 text-muted-foreground" />
+                                <span>{property.sharing_type}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="font-bold text-lg flex items-center">
+                            <IndianRupee className="h-4 w-4" />
+                            {property.monthly_rent?.toLocaleString() || 0}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          {property.instant_booking && (
+                            <Badge variant="outline" className="text-xs">
+                              <Zap className="h-3 w-3 mr-1" />
+                              Instant Book
+                            </Badge>
+                          )}
+                          {property.is_verified && (
+                            <Badge variant="outline" className="text-xs">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Verified
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/property/${property.id}`);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/owner/properties/edit/${property.id}`);
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  <div className="text-right">
-                      <p className="font-semibold flex items-center gap-1 justify-end">
-                        <IndianRupee className="h-4 w-4" />
-                        {property.monthly_rent?.toLocaleString() || 0}
-                      </p>
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        property.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {property.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
