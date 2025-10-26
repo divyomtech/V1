@@ -288,31 +288,52 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          emergency_contact_address: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           id: string
+          languages_known: string[] | null
+          mother_tongue: string | null
           name: string
           phone: string | null
           profile_photo: string | null
           updated_at: string
+          work_place: string | null
+          work_type: string | null
         }
         Insert: {
           address?: string | null
           city?: string | null
           created_at?: string
+          emergency_contact_address?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           id: string
+          languages_known?: string[] | null
+          mother_tongue?: string | null
           name: string
           phone?: string | null
           profile_photo?: string | null
           updated_at?: string
+          work_place?: string | null
+          work_type?: string | null
         }
         Update: {
           address?: string | null
           city?: string | null
           created_at?: string
+          emergency_contact_address?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           id?: string
+          languages_known?: string[] | null
+          mother_tongue?: string | null
           name?: string
           phone?: string | null
           profile_photo?: string | null
           updated_at?: string
+          work_place?: string | null
+          work_type?: string | null
         }
         Relationships: []
       }

@@ -1,12 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "./ui/button";
-import { Home, Building2, LayoutDashboard, User, LogOut, Menu } from "lucide-react";
+import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 
 const Header = () => {
   const { user, role, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const getRoleBasedNav = () => {
     if (role === 'owner') return [
@@ -24,9 +26,16 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-primary">He&She</h1>
-        </Link>
+        <div className="flex items-center gap-3">
+          {location.pathname !== '/' && (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <Link to="/" className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-primary">He&She</h1>
+          </Link>
+        </div>
         
         {user && (
           <>

@@ -42,7 +42,14 @@ const Profile = () => {
     pan_card_url: "",
     gst_doc_url: "",
     profile_verification_status: "pending",
-    about: ""
+    about: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_address: "",
+    work_type: "",
+    work_place: "",
+    languages_known: [],
+    mother_tongue: ""
   });
 
   useEffect(() => {
@@ -86,7 +93,14 @@ const Profile = () => {
           pan_card_url: profileData.pan_card_url || "",
           gst_doc_url: profileData.gst_doc_url || "",
           profile_verification_status: profileData.profile_verification_status || "pending",
-          about: profileData.about || ""
+          about: profileData.about || "",
+          emergency_contact_name: profileData.emergency_contact_name || "",
+          emergency_contact_phone: profileData.emergency_contact_phone || "",
+          emergency_contact_address: profileData.emergency_contact_address || "",
+          work_type: profileData.work_type || "",
+          work_place: profileData.work_place || "",
+          languages_known: profileData.languages_known || [],
+          mother_tongue: profileData.mother_tongue || ""
         });
       }
     } catch (error) {
@@ -115,6 +129,13 @@ const Profile = () => {
           gender: profile.gender,
           date_of_birth: profile.date_of_birth,
           about: profile.about,
+          emergency_contact_name: profile.emergency_contact_name,
+          emergency_contact_phone: profile.emergency_contact_phone,
+          emergency_contact_address: profile.emergency_contact_address,
+          work_type: profile.work_type,
+          work_place: profile.work_place,
+          languages_known: profile.languages_known,
+          mother_tongue: profile.mother_tongue,
           updated_at: new Date().toISOString()
         });
 
@@ -426,6 +447,95 @@ const Profile = () => {
                     </div>
                   </CardContent>
                 </Card>
+              )}
+
+              {isCustomer && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Emergency Contact Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="emergency_contact_name">Parent/Guardian Name</Label>
+                        <Input
+                          id="emergency_contact_name"
+                          value={profile.emergency_contact_name}
+                          onChange={(e) => setProfile({ ...profile, emergency_contact_name: e.target.value })}
+                          placeholder="Enter parent or guardian name"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="emergency_contact_phone">Emergency Contact Number</Label>
+                        <Input
+                          id="emergency_contact_phone"
+                          value={profile.emergency_contact_phone}
+                          onChange={(e) => setProfile({ ...profile, emergency_contact_phone: e.target.value })}
+                          placeholder="+91 98765 43210"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="emergency_contact_address">Emergency Contact Address</Label>
+                        <Textarea
+                          id="emergency_contact_address"
+                          value={profile.emergency_contact_address}
+                          onChange={(e) => setProfile({ ...profile, emergency_contact_address: e.target.value })}
+                          placeholder="Enter emergency contact address"
+                          rows={3}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Work & Language Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="work_type">Type of Work</Label>
+                        <Input
+                          id="work_type"
+                          value={profile.work_type}
+                          onChange={(e) => setProfile({ ...profile, work_type: e.target.value })}
+                          placeholder="Student/Working Professional/Business etc."
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="work_place">Work Place</Label>
+                        <Input
+                          id="work_place"
+                          value={profile.work_place}
+                          onChange={(e) => setProfile({ ...profile, work_place: e.target.value })}
+                          placeholder="Company/College name and location"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="mother_tongue">Mother Tongue</Label>
+                        <Input
+                          id="mother_tongue"
+                          value={profile.mother_tongue}
+                          onChange={(e) => setProfile({ ...profile, mother_tongue: e.target.value })}
+                          placeholder="Your native language"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="languages_known">Languages Known</Label>
+                        <Input
+                          id="languages_known"
+                          value={profile.languages_known?.join(', ')}
+                          onChange={(e) => setProfile({ ...profile, languages_known: e.target.value.split(',').map(lang => lang.trim()).filter(Boolean) })}
+                          placeholder="English, Hindi, Tamil (comma separated)"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
               )}
 
               {isOwner && (
