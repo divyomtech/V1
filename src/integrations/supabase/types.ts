@@ -110,6 +110,35 @@ export type Database = {
           },
         ]
       }
+      favorites: {
+        Row: {
+          created_at: string
+          id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -405,6 +434,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          cleanliness_rating: number | null
+          comment: string | null
+          created_at: string
+          food_rating: number | null
+          id: string
+          property_id: string
+          rating: number
+          safety_rating: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cleanliness_rating?: number | null
+          comment?: string | null
+          created_at?: string
+          food_rating?: number | null
+          id?: string
+          property_id: string
+          rating: number
+          safety_rating?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cleanliness_rating?: number | null
+          comment?: string | null
+          created_at?: string
+          food_rating?: number | null
+          id?: string
+          property_id?: string
+          rating?: number
+          safety_rating?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rooms: {
         Row: {
