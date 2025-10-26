@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { SafetyScore } from "@/components/SafetyScore";
+import { ShareDialog } from "@/components/ShareDialog";
+import { useFavorites } from "@/hooks/useFavorites";
+import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare, Heart, Gift, ArrowLeftRight, Star, Camera, TrendingUp, Zap, Video } from "lucide-react";
 import { toast } from "sonner";
 import bangaloreImg from "@/assets/cities/bangalore.jpg";
 import hyderabadImg from "@/assets/cities/hyderabad.jpg";
@@ -54,6 +58,10 @@ const CustomerDashboard = () => {
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [newCityName, setNewCityName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [featuredProperties, setFeaturedProperties] = useState<any[]>([]);
+  const [stats, setStats] = useState({ activeBookings: 0, savedProperties: 0, referralRewards: 0 });
+  const { favorites, toggleFavorite } = useFavorites(user?.id);
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -62,6 +70,8 @@ const CustomerDashboard = () => {
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchFeaturedProperties();
+      fetchStats();
     }
   }, [user]);
 
@@ -81,9 +91,44 @@ const CustomerDashboard = () => {
     }
   };
 
+  const fetchFeaturedProperties = async () => {
+    try {
+      const { data } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      
+      if (data) setFeaturedProperties(data);
+    } catch (error) {
+      console.error('Error fetching featured properties:', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const [bookingsRes, favoritesRes, referralsRes] = await Promise.all([
+        supabase.from('bookings').select('id', { count: 'exact' }).eq('customer_id', user?.id).in('status', ['requested', 'accepted']),
+        supabase.from('favorites').select('id', { count: 'exact' }).eq('user_id', user?.id),
+        supabase.from('referrals').select('reward_amount').eq('referrer_id', user?.id).eq('reward_claimed', true)
+      ]);
+
+      const totalRewards = referralsRes.data?.reduce((sum, r) => sum + r.reward_amount, 0) || 0;
+
+      setStats({
+        activeBookings: bookingsRes.count || 0,
+        savedProperties: favoritesRes.count || 0,
+        referralRewards: totalRewards
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
   const fetchPropertiesByLocation = async (city: string, area?: string) => {
     try {
-      let query = supabase.from('properties').select('*').eq('city', city);
+      let query = supabase.from('properties').select('*').eq('city', city).eq('status', 'active');
       
       if (area) {
         query = query.ilike('address', `%${area}%`);
@@ -93,6 +138,12 @@ const CustomerDashboard = () => {
       if (data) setProperties(data);
     } catch (error) {
       console.error('Error fetching properties:', error);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (searchTerm.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
     }
   };
 
@@ -146,21 +197,31 @@ const CustomerDashboard = () => {
                   <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-3 mt-6">
-                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Customer care feature coming soon!")}>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => navigate('/favorites')}>
+                    <Heart className="h-5 w-5 text-primary" />
+                    My Favorites
+                    {stats.savedProperties > 0 && (
+                      <Badge className="ml-auto">{stats.savedProperties}</Badge>
+                    )}
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => navigate('/referrals')}>
+                    <Gift className="h-5 w-5 text-primary" />
+                    Referral Program
+                    {stats.referralRewards > 0 && (
+                      <Badge className="ml-auto">₹{stats.referralRewards}</Badge>
+                    )}
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => navigate('/roommate-match')}>
+                    <User className="h-5 w-5 text-primary" />
+                    Find Roommate
+                  </Button>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => window.open('tel:1800-123-4567')}>
                     <Phone className="h-5 w-5 text-primary" />
                     Customer Care
                   </Button>
-                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Help center feature coming soon!")}>
+                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Help center: Contact us at support@heshe.com")}>
                     <HelpCircle className="h-5 w-5 text-primary" />
                     Help Center
-                  </Button>
-                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Report feature coming soon!")}>
-                    <Flag className="h-5 w-5 text-primary" />
-                    Report an Issue
-                  </Button>
-                  <Button variant="outline" className="justify-start gap-3" onClick={() => toast.info("Feedback feature coming soon!")}>
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Send Feedback
                   </Button>
                   <Button variant="outline" className="justify-start gap-3" onClick={() => navigate('/profile')}>
                     <Settings className="h-5 w-5 text-primary" />
@@ -171,8 +232,24 @@ const CustomerDashboard = () => {
             </Sheet>
           </div>
 
+          {/* Quick Search Bar */}
+          <div className="px-4 py-4 bg-background/95 backdrop-blur-sm border-b border-border">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search PGs by name, city, or area..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="flex-1"
+              />
+              <Button onClick={handleSearch} size="icon">
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
           {/* Cities Stories Section */}
-          <div className="sticky top-[53px] z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+          <div className="sticky top-[117px] z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {cities.map((city) => (
                 <button
@@ -260,20 +337,71 @@ const CustomerDashboard = () => {
               {properties.map((property) => (
                 <Card 
                   key={property.id} 
-                  className="p-4 hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/properties/${property.id}`)}
+                  className="overflow-hidden hover:shadow-lg transition-all"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold truncate">{property.title}</h4>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {property.city}
-                      </p>
-                      <p className="text-primary font-semibold mt-1">₹{property.price}/month</p>
+                  <div className="relative">
+                    {property.photos && property.photos.length > 0 ? (
+                      <img
+                        src={property.photos[0]}
+                        alt={property.title}
+                        className="w-full h-40 object-cover cursor-pointer"
+                        onClick={() => navigate(`/properties/${property.id}`)}
+                      />
+                    ) : (
+                      <div className="w-full h-40 bg-muted flex items-center justify-center">
+                        <Camera className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <ShareDialog propertyId={property.id} title={property.title} />
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(property.id);
+                        }}
+                      >
+                        <Heart
+                          className={`h-4 w-4 ${
+                            favorites.has(property.id) ? 'fill-red-500 text-red-500' : ''
+                          }`}
+                        />
+                      </Button>
                     </div>
+                    {property.instant_booking && (
+                      <Badge className="absolute top-2 left-2 bg-green-600">
+                        <Zap className="h-3 w-3 mr-1" />
+                        Instant Booking
+                      </Badge>
+                    )}
+                    {property.virtual_tour_url && (
+                      <Badge className="absolute bottom-2 left-2 bg-purple-600">
+                        <Video className="h-3 w-3 mr-1" />
+                        Virtual Tour
+                      </Badge>
+                    )}
                   </div>
+                  <CardContent className="p-4 cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{property.title}</h4>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {property.locality}, {property.city}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-primary font-bold text-lg">
+                        ₹{property.monthly_rent?.toLocaleString()}/mo
+                      </p>
+                      {property.safety_score && property.safety_score > 0 && (
+                        <SafetyScore score={property.safety_score} />
+                      )}
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>
@@ -287,6 +415,102 @@ const CustomerDashboard = () => {
               <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.name || 'Guest'}!</h2>
               <p className="text-muted-foreground text-sm">Find your perfect PG</p>
             </div>
+
+            {/* Quick Stats Cards */}
+            <div className="px-4 py-6 border-b border-border">
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/bookings')}>
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                      <Calendar className="h-6 w-6 text-primary" />
+                    </div>
+                    <p className="text-2xl font-bold">{stats.activeBookings}</p>
+                    <p className="text-xs text-muted-foreground">Active Bookings</p>
+                  </div>
+                </Card>
+                <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/favorites')}>
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-2">
+                      <Heart className="h-6 w-6 text-red-600" />
+                    </div>
+                    <p className="text-2xl font-bold">{stats.savedProperties}</p>
+                    <p className="text-xs text-muted-foreground">Saved PGs</p>
+                  </div>
+                </Card>
+                <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/referrals')}>
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                      <Gift className="h-6 w-6 text-green-600" />
+                    </div>
+                    <p className="text-2xl font-bold">₹{stats.referralRewards}</p>
+                    <p className="text-xs text-muted-foreground">Rewards</p>
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* Featured Properties */}
+            {featuredProperties.length > 0 && (
+              <div className="px-4 py-6 border-b border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Featured PGs
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
+                    View All
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {featuredProperties.slice(0, 4).map((property) => (
+                    <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
+                      <div className="relative">
+                        {property.photos && property.photos.length > 0 ? (
+                          <img
+                            src={property.photos[0]}
+                            alt={property.title}
+                            className="w-full h-32 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-muted flex items-center justify-center">
+                            <Camera className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        {property.instant_booking && (
+                          <Badge className="absolute top-2 left-2 bg-green-600 text-xs">
+                            <Zap className="h-2 w-2 mr-1" />
+                            Instant
+                          </Badge>
+                        )}
+                        {property.virtual_tour_url && (
+                          <Badge className="absolute top-2 right-2 bg-purple-600 text-xs">
+                            <Video className="h-2 w-2" />
+                          </Badge>
+                        )}
+                      </div>
+                      <CardContent className="p-3">
+                        <h4 className="font-semibold text-sm truncate">{property.title}</h4>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-2 w-2" />
+                          {property.city}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-primary font-bold text-sm">
+                            ₹{property.monthly_rent?.toLocaleString()}
+                          </p>
+                          {property.safety_score && property.safety_score >= 4 && (
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <Star className="h-3 w-3 fill-current" />
+                              {property.safety_score}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* About PGs Section */}
             <div className="px-4 py-6 bg-gradient-to-br from-primary/5 via-background to-accent/20 border-b border-border">
@@ -413,6 +637,22 @@ const CustomerDashboard = () => {
               className={`h-6 w-6 transition-colors ${isActive('/search') ? 'text-primary' : 'text-muted-foreground'}`}
             />
             {isActive('/search') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
+          </button>
+          
+          <button
+            onClick={() => navigate('/favorites')}
+            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
+          >
+            <Heart 
+              className={`h-6 w-6 transition-colors ${isActive('/favorites') ? 'text-primary' : 'text-muted-foreground'}`}
+              fill={isActive('/favorites') ? 'currentColor' : 'none'}
+            />
+            {stats.savedProperties > 0 && (
+              <Badge className="absolute -top-1 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                {stats.savedProperties}
+              </Badge>
+            )}
+            {isActive('/favorites') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
           
           <button
