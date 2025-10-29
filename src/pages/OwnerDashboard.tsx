@@ -8,10 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell, BarChart3, Wallet, UserCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import AnalyticsDashboard from "@/components/owner/AnalyticsDashboard";
+import FinancialTracking from "@/components/owner/FinancialTracking";
+import TenantManagement from "@/components/owner/TenantManagement";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -33,6 +37,15 @@ const OwnerDashboard = () => {
     paymentReminders: false,
     maintenanceReminders: false
   });
+  const [payments, setPayments] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [analyticsData, setAnalyticsData] = useState({
+    monthlyData: [],
+    occupancyRate: 0,
+    totalRevenue: 0,
+    revenueTrend: 0,
+    propertyPerformance: []
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -43,10 +56,11 @@ const OwnerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [propertiesRes, bookingsRes, profileRes] = await Promise.all([
+      const [propertiesRes, bookingsRes, profileRes, paymentsRes] = await Promise.all([
         supabase.from('properties').select('*').eq('owner_id', user?.id).order('created_at', { ascending: false }),
-        supabase.from('bookings').select('*, properties!inner(owner_id, title), profiles!bookings_user_id_fkey(full_name)').eq('properties.owner_id', user?.id).order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*').eq('id', user?.id).single()
+        supabase.from('bookings').select('*, properties!inner(owner_id, title), profiles!bookings_customer_id_fkey(name, phone, profile_photo)').eq('properties.owner_id', user?.id).order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*').eq('id', user?.id).single(),
+        supabase.from('payments').select('*, bookings!inner(properties!inner(owner_id, title), customer_id, profiles!bookings_customer_id_fkey(name))').eq('bookings.properties.owner_id', user?.id).order('created_at', { ascending: false })
       ]);
 
       if (propertiesRes.data) {
@@ -88,6 +102,77 @@ const OwnerDashboard = () => {
           totalTenants,
           pendingPayments
         }));
+
+        // Process tenant data
+        const tenantsList = bookingsRes.data
+          .filter((b: any) => b.status === 'active' || b.status === 'checked-in')
+          .map((b: any) => ({
+            id: b.customer_id,
+            name: b.profiles?.name || 'Unknown',
+            email: b.profiles?.email || '',
+            phone: b.profiles?.phone || '',
+            profile_photo: b.profiles?.profile_photo || '',
+            property_title: b.properties?.title || '',
+            property_id: b.property_id,
+            booking_id: b.id,
+            check_in_date: b.start_date,
+            rent_amount: b.amount,
+            status: 'active',
+            documents_submitted: b.customer_documents && b.customer_documents.length > 0
+          }));
+        setTenants(tenantsList);
+
+        // Calculate analytics
+        const last6Months = Array.from({ length: 6 }, (_, i) => {
+          const date = new Date();
+          date.setMonth(date.getMonth() - (5 - i));
+          return date;
+        });
+
+        const monthlyData = last6Months.map(date => {
+          const monthBookings = bookingsRes.data.filter((b: any) => {
+            const bookingDate = new Date(b.created_at);
+            return bookingDate.getMonth() === date.getMonth() && 
+                   bookingDate.getFullYear() === date.getFullYear();
+          });
+          
+          return {
+            month: date.toLocaleDateString('en-US', { month: 'short' }),
+            revenue: monthBookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0),
+            bookings: monthBookings.length
+          };
+        });
+
+        const occupancyRate = propertiesRes.data.length > 0
+          ? Math.round((activeBookings.length / propertiesRes.data.length) * 100)
+          : 0;
+
+        const propertyPerformance = propertiesRes.data.slice(0, 5).map((p: any) => ({
+          name: p.title.substring(0, 15) + '...',
+          value: bookingsRes.data.filter((b: any) => b.property_id === p.id).length
+        }));
+
+        setAnalyticsData({
+          monthlyData: monthlyData as any,
+          occupancyRate,
+          totalRevenue: monthlyRevenue,
+          revenueTrend: 12.5, // Mock data - calculate based on previous month
+          propertyPerformance: propertyPerformance as any
+        });
+      }
+
+      if (paymentsRes.data) {
+        const formattedPayments = paymentsRes.data.map((p: any) => ({
+          id: p.id,
+          booking_id: p.booking_id,
+          amount: p.amount,
+          status: p.status,
+          type: p.type,
+          created_at: p.created_at,
+          property_title: p.bookings?.properties?.title || 'Unknown',
+          tenant_name: p.bookings?.profiles?.name || 'Unknown'
+        }));
+        setPayments(formattedPayments);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -258,21 +343,44 @@ const OwnerDashboard = () => {
           </Card>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search properties by name, city, or locality..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
+        {/* Main Dashboard Tabs */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Financial
+            </TabsTrigger>
+            <TabsTrigger value="tenants" className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4" />
+              Tenants
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search properties by name, city, or locality..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/properties/add')}>
             <CardContent className="flex flex-col items-center justify-center p-6">
               <Plus className="h-8 w-8 mb-2 text-primary" />
@@ -308,16 +416,16 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support')}>
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <MessageSquare className="h-8 w-8 mb-2 text-primary" />
-              <h3 className="font-semibold text-center">Support</h3>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/support')}>
+                <CardContent className="flex flex-col items-center justify-center p-6">
+                  <MessageSquare className="h-8 w-8 mb-2 text-primary" />
+                  <h3 className="font-semibold text-center">Support</h3>
+                </CardContent>
+              </Card>
+            </div>
 
-        {/* Monthly Reminders */}
-        <Card className="mb-8">
+            {/* Monthly Reminders */}
+            <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
@@ -356,14 +464,14 @@ const OwnerDashboard = () => {
                   checked={reminders.maintenanceReminders}
                   onCheckedChange={(checked) => handleReminderToggle('maintenance', checked)}
                 />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+            </Card>
 
-        {/* Recent Bookings */}
-        {recentBookings.length > 0 && (
-          <Card className="mb-8">
+            {/* Recent Bookings */}
+            {recentBookings.length > 0 && (
+              <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Recent Booking Requests</span>
@@ -394,13 +502,13 @@ const OwnerDashboard = () => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </div>
+              </CardContent>
+              </Card>
+            )}
 
-        {/* Properties List */}
-        <Card>
+            {/* Properties List */}
+            <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Your Properties ({filteredProperties.length})</span>
@@ -509,8 +617,41 @@ const OwnerDashboard = () => {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics">
+            <AnalyticsDashboard
+              monthlyData={analyticsData.monthlyData}
+              occupancyRate={analyticsData.occupancyRate}
+              totalRevenue={analyticsData.totalRevenue}
+              revenueTrend={analyticsData.revenueTrend}
+              propertyPerformance={analyticsData.propertyPerformance}
+            />
+          </TabsContent>
+
+          {/* Financial Tab */}
+          <TabsContent value="financial">
+            <FinancialTracking
+              payments={payments}
+              pendingAmount={payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0)}
+              receivedAmount={payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0)}
+              upcomingAmount={stats.monthlyRevenue}
+            />
+          </TabsContent>
+
+          {/* Tenants Tab */}
+          <TabsContent value="tenants">
+            <TenantManagement
+              tenants={tenants}
+              activeTenants={stats.totalTenants}
+              pendingDocuments={tenants.filter(t => !t.documents_submitted).length}
+              pendingPayments={stats.pendingPayments}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
       <Footer />
     </div>
