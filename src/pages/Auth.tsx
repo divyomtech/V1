@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import welcomeIllustration from '@/assets/welcome-illustration.png';
 import { supabase } from '@/integrations/supabase/client';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -17,7 +18,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password' | 'reset-password'>('welcome');
+  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password' | 'verify-otp' | 'reset-password'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -26,6 +27,8 @@ const Auth = () => {
   const [contactInfo, setContactInfo] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpPhone, setOtpPhone] = useState('');
   const { signUp, signIn, resetPassword, user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -41,7 +44,7 @@ const Auth = () => {
   }, []);
 
   useEffect(() => {
-    if (user && !loading && view !== 'reset-password') {
+    if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
       navigate('/');
     }
   }, [user, loading, navigate, view]);
@@ -113,11 +116,96 @@ const Auth = () => {
         setContactInfo('');
       }
     } else {
-      // Mobile number - SMS not configured
+      // Treat as phone number flow (OTP)
+      const phoneRaw = contactInfo.trim();
+      const sanitized = phoneRaw.replace(/\s+/g, '');
+      let phone = sanitized;
+      if (/^\d{10,15}$/.test(sanitized)) {
+        phone = `+${sanitized}`;
+      }
+
+      const phoneSchema = z.string().regex(/^\+?[1-9]\d{7,14}$/,
+        'Enter a valid phone number with country code (e.g., +91XXXXXXXXXX)'
+      );
+      if (!phoneSchema.safeParse(phone).success) {
+        toast({
+          variant: "destructive",
+          title: "Invalid phone number",
+          description: "Use country code, e.g., +91XXXXXXXXXX",
+        });
+        return;
+      }
+
+      try {
+        const { error } = await supabase.auth.signInWithOtp({ phone });
+        if (error) throw error;
+        setOtpPhone(phone);
+        setView('verify-otp');
+        toast({
+          title: "OTP sent",
+          description: `We sent a 6-digit code to ${phone}`,
+        });
+      } catch (err: any) {
+        toast({
+          variant: "destructive",
+          title: "Could not send OTP",
+          description: err?.message || "SMS is not enabled. Use email reset or enable SMS in the backend.",
+        });
+      }
+    }
+  };
+
+  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!otpPhone) {
       toast({
         variant: "destructive",
-        title: "SMS not configured",
-        description: "Please use email for password reset",
+        title: "Missing phone",
+        description: "Go back and enter your phone number",
+      });
+      return;
+    }
+
+    if (!otpCode || otpCode.trim().length < 4) {
+      toast({
+        variant: "destructive",
+        title: "Invalid code",
+        description: "Please enter the 6-digit code",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: otpPhone,
+        token: otpCode,
+        type: 'sms',
+      } as any);
+      if (error) throw error;
+
+      toast({ title: "Verified", description: "Please create your new password" });
+      setView('reset-password');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Verification failed",
+        description: error?.message || "The code you entered is invalid",
+      });
+    }
+  };
+
+  const handleResendPhoneOtp = async () => {
+    if (!otpPhone) return;
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: otpPhone });
+      if (error) throw error;
+      toast({ title: "OTP resent", description: `A new code was sent to ${otpPhone}` });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Could not resend OTP",
+        description: error?.message || "Please wait a bit and try again",
       });
     }
   };
@@ -317,7 +405,7 @@ const Auth = () => {
                 className="h-12 text-base"
               />
               <p className="text-xs text-muted-foreground">
-                Note: SMS verification requires additional setup. Please use email for now.
+                Use email for a reset link or phone (+country code) to receive an OTP.
               </p>
             </div>
             
@@ -335,6 +423,53 @@ const Auth = () => {
               className="text-muted-foreground hover:text-primary font-medium"
             >
               ← Back to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Verify OTP Screen (phone)
+  if (view === 'verify-otp') {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              Enter the 6-digit code sent to your phone
+            </p>
+          </div>
+
+          {/* OTP Form */}
+          <form onSubmit={handleVerifyPhoneOtp} className="space-y-6 flex-1">
+            <div className="flex justify-center">
+              <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+              Verify OTP
+            </Button>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center mt-6 space-x-6">
+            <button onClick={handleResendPhoneOtp} className="text-primary hover:underline font-medium">
+              Resend code
+            </button>
+            <button onClick={() => setView('forgot-password')} className="text-muted-foreground hover:text-primary font-medium">
+              Change number
             </button>
           </div>
         </div>
