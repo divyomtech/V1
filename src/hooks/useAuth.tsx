@@ -39,36 +39,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const ensureRolePresent = async (u: User) => {
     try {
-      const requested = (u.user_metadata?.requested_role as AppRole) || 'customer';
+      // SECURITY: Only READ roles from database, never write based on user metadata
+      // User metadata is client-controllable and should never be trusted for authorization
       const { data: rows, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', u.id);
 
       if (!error && rows && rows.length > 0) {
-        const current = rows[0].role as AppRole;
-        if (current !== requested && (requested === 'owner' || requested === 'customer')) {
-          // Prefer the requested role (e.g., promote to owner) and persist it
-          setRole(requested);
-          await supabase.from('user_roles').delete().eq('user_id', u.id);
-          await supabase
-            .from('user_roles')
-            .insert({ user_id: u.id, role: requested })
-            .single();
-        } else {
-          setRole(current);
-        }
-        return;
+        // Use the role from database (set by admins only)
+        setRole(rows[0].role as AppRole);
+      } else {
+        // Default to customer for new users without assigned roles
+        // Note: Owner role must be assigned by admin after approval
+        setRole('customer');
       }
-
-      // No role found: derive from metadata and persist for future sessions
-      setRole(requested);
-      await supabase
-        .from('user_roles')
-        .insert({ user_id: u.id, role: requested })
-        .single();
     } catch (_) {
-      // Ignore persistence errors; UI still uses derived role
+      // On error, default to customer role for safety
+      setRole('customer');
     }
   };
 
