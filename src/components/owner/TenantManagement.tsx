@@ -30,12 +30,12 @@ interface TenantManagementProps {
 }
 
 const TenantManagement = ({ tenants, activeTenants, pendingDocuments, pendingPayments }: TenantManagementProps) => {
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): "success" | "warning" | "secondary" => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active': return 'success';
+      case 'pending': return 'warning';
+      case 'inactive': return 'secondary';
+      default: return 'secondary';
     }
   };
 
@@ -47,38 +47,44 @@ const TenantManagement = ({ tenants, activeTenants, pendingDocuments, pendingPay
     <div className="space-y-6">
       {/* Tenant Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="border-l-4 border-l-success hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Tenants</p>
-                <p className="text-2xl font-bold">{activeTenants}</p>
+                <p className="text-sm text-muted-foreground font-medium">Active Tenants</p>
+                <p className="text-3xl font-bold mt-1">{activeTenants}</p>
               </div>
-              <User className="h-8 w-8 text-primary" />
+              <div className="bg-success/10 p-3 rounded-lg">
+                <User className="h-8 w-8 text-success" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-warning hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending Documents</p>
-                <p className="text-2xl font-bold">{pendingDocuments}</p>
+                <p className="text-sm text-muted-foreground font-medium">Pending Documents</p>
+                <p className="text-3xl font-bold mt-1">{pendingDocuments}</p>
               </div>
-              <FileText className="h-8 w-8 text-orange-500" />
+              <div className="bg-warning/10 p-3 rounded-lg">
+                <FileText className="h-8 w-8 text-warning" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-destructive hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Payment Pending</p>
-                <p className="text-2xl font-bold">{pendingPayments}</p>
+                <p className="text-sm text-muted-foreground font-medium">Payment Pending</p>
+                <p className="text-3xl font-bold mt-1">{pendingPayments}</p>
               </div>
-              <AlertCircle className="h-8 w-8 text-red-500" />
+              <div className="bg-destructive/10 p-3 rounded-lg">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -106,60 +112,64 @@ const TenantManagement = ({ tenants, activeTenants, pendingDocuments, pendingPay
                   </div>
                 ) : (
                   (tab === 'all' ? tenants : filterTenantsByStatus(tab)).map((tenant) => (
-                    <div key={tenant.id} className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
+                    <div key={tenant.id} className="group border rounded-xl p-5 hover:shadow-lg hover:border-accent/50 transition-all duration-300 bg-card">
                       <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-4">
-                          <Avatar className="h-12 w-12">
+                        <div className="flex items-start gap-4 flex-1">
+                          <Avatar className="h-14 w-14 border-2 border-accent/20 ring-2 ring-transparent group-hover:ring-accent/30 transition-all">
                             <AvatarImage src={tenant.profile_photo} />
-                            <AvatarFallback>{tenant.name.charAt(0)}</AvatarFallback>
+                            <AvatarFallback className="bg-accent/10 text-accent font-semibold text-lg">
+                              {tenant.name.charAt(0)}
+                            </AvatarFallback>
                           </Avatar>
-                          <div className="space-y-3">
+                          <div className="space-y-3 flex-1">
                             <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold">{tenant.name}</h3>
-                                <Badge className={getStatusColor(tenant.status)}>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-lg">{tenant.name}</h3>
+                                <Badge variant={getStatusVariant(tenant.status)} className="capitalize">
                                   {tenant.status}
                                 </Badge>
                                 {!tenant.documents_submitted && (
-                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                  <Badge variant="warning" className="gap-1">
+                                    <FileText className="h-3 w-3" />
                                     Docs Pending
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                                <Home className="h-3 w-3" />
+                              <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1.5">
+                                <Home className="h-3.5 w-3.5" />
                                 {tenant.property_title}
                               </p>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="flex items-center gap-2 text-sm">
-                                <Mail className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">{tenant.email}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
+                                <Mail className="h-4 w-4 text-accent flex-shrink-0" />
+                                <span className="text-foreground truncate">{tenant.email}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Phone className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">{tenant.phone}</span>
+                              <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
+                                <Phone className="h-4 w-4 text-accent flex-shrink-0" />
+                                <span className="text-foreground">{tenant.phone}</span>
                               </div>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">
-                                  Joined: {format(new Date(tenant.check_in_date), 'MMM dd, yyyy')}
+                              <div className="flex items-center gap-2 text-sm bg-muted/30 p-2 rounded-lg">
+                                <Calendar className="h-4 w-4 text-accent flex-shrink-0" />
+                                <span className="text-foreground">
+                                  {format(new Date(tenant.check_in_date), 'MMM dd, yyyy')}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2 text-sm">
-                                <span className="font-semibold">₹{tenant.rent_amount.toLocaleString()}/mo</span>
+                              <div className="flex items-center gap-2 text-sm bg-accent/10 p-2 rounded-lg">
+                                <span className="font-bold text-accent">₹{tenant.rent_amount.toLocaleString()}</span>
+                                <span className="text-muted-foreground">/month</span>
                               </div>
                             </div>
                           </div>
                         </div>
                         
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
+                        <div className="flex gap-2 ml-4">
+                          <Button variant="outline" size="sm" className="hover:bg-accent hover:text-accent-foreground hover:border-accent">
                             <MessageSquare className="h-4 w-4 mr-1" />
                             Contact
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" className="hover:bg-accent/10 hover:text-accent">
                             <FileText className="h-4 w-4" />
                           </Button>
                         </div>

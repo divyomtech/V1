@@ -269,75 +269,87 @@ const OwnerDashboard = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <Card className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Properties</p>
-                  <p className="text-2xl font-bold">{stats.totalProperties}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Total Properties</p>
+                  <p className="text-3xl font-bold mt-1">{stats.totalProperties}</p>
                 </div>
-                <Building2 className="h-8 w-8 text-primary" />
+                <div className="bg-primary/10 p-3 rounded-lg">
+                  <Building2 className="h-8 w-8 text-primary" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-accent hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Tenants</p>
-                  <p className="text-2xl font-bold">{stats.totalTenants}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Total Tenants</p>
+                  <p className="text-3xl font-bold mt-1">{stats.totalTenants}</p>
                 </div>
-                <Users className="h-8 w-8 text-primary" />
+                <div className="bg-accent/10 p-3 rounded-lg">
+                  <Users className="h-8 w-8 text-accent" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-warning hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Pending Requests</p>
-                  <p className="text-2xl font-bold">{stats.pendingRequests}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Pending Requests</p>
+                  <p className="text-3xl font-bold mt-1">{stats.pendingRequests}</p>
                 </div>
-                <Calendar className="h-8 w-8 text-orange-500" />
+                <div className="bg-warning/10 p-3 rounded-lg">
+                  <Calendar className="h-8 w-8 text-warning" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-success hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Monthly Revenue</p>
-                  <p className="text-2xl font-bold">₹{stats.monthlyRevenue.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Monthly Revenue</p>
+                  <p className="text-3xl font-bold mt-1">₹{stats.monthlyRevenue.toLocaleString()}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-500" />
+                <div className="bg-success/10 p-3 rounded-lg">
+                  <TrendingUp className="h-8 w-8 text-success" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-info hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Bookings</p>
-                  <p className="text-2xl font-bold">{stats.activeBookings}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Active Bookings</p>
+                  <p className="text-3xl font-bold mt-1">{stats.activeBookings}</p>
                 </div>
-                <Calendar className="h-8 w-8 text-blue-500" />
+                <div className="bg-info/10 p-3 rounded-lg">
+                  <Calendar className="h-8 w-8 text-info" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-destructive hover:shadow-md transition-shadow">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Pending Payments</p>
-                  <p className="text-2xl font-bold">{stats.pendingPayments}</p>
+                  <p className="text-sm text-muted-foreground font-medium">Pending Payments</p>
+                  <p className="text-3xl font-bold mt-1">{stats.pendingPayments}</p>
                 </div>
-                <CreditCard className="h-8 w-8 text-purple-500" />
+                <div className="bg-destructive/10 p-3 rounded-lg">
+                  <CreditCard className="h-8 w-8 text-destructive" />
+                </div>
               </div>
             </CardContent>
           </Card>
