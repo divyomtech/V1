@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import AnalyticsDashboard from "@/components/owner/AnalyticsDashboard";
 import FinancialTracking from "@/components/owner/FinancialTracking";
 import TenantManagement from "@/components/owner/TenantManagement";
+import heroBackground from "@/assets/hero-bg.jpg";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -238,17 +239,47 @@ const OwnerDashboard = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Owner Dashboard</h1>
-            <p className="text-muted-foreground">Manage your properties, bookings, and tenants</p>
+      
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-br from-primary/20 via-accent/10 to-background min-h-[320px] flex items-center justify-center overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{ 
+            backgroundImage: `url(${heroBackground})`,
+            backgroundBlendMode: 'overlay'
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background" />
+        
+        <div className="container relative z-10 py-12">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold mb-3">
+              Welcome back, <span className="text-primary">{profile?.name || 'Owner'}</span>
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Manage your properties, track revenue, and connect with tenants
+            </p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/profile')}>
-            <User className="h-4 w-4 mr-2" />
-            View Profile
-          </Button>
+
+          {/* Feature Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
+            <div className="bg-card/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-border flex items-center gap-2">
+              <Shield className="h-5 w-5 text-success" />
+              <span className="font-semibold">Verified Owner</span>
+            </div>
+            <div className="bg-card/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-border flex items-center gap-2">
+              <Clock className="h-5 w-5 text-info" />
+              <span className="font-semibold">24/7 Support</span>
+            </div>
+            <div className="bg-card/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-border flex items-center gap-2">
+              <Zap className="h-5 w-5 text-warning" />
+              <span className="font-semibold">Quick Approvals</span>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <main className="flex-1 container py-8">
 
         {/* Profile Status Banner */}
         {profile && profile.profile_verification_status === 'pending' && (
