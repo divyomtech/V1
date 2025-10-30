@@ -527,7 +527,7 @@ const CustomerDashboard = () => {
             {/* About PGs Section */}
             <div className="px-4 py-6 bg-gradient-to-br from-primary/5 via-background to-accent/20 border-b border-border">
               <div className="max-w-2xl mx-auto">
-                <h3 className="text-xl font-bold mb-4 text-primary">Why Choose StaySecure PG?</h3>
+                <h3 className="text-xl font-bold mb-4 text-primary">Why Choose HE&amp;SHE PG?</h3>
                 <div className="grid gap-4">
                   <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
