@@ -184,7 +184,7 @@ const CustomerDashboard = () => {
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-4 flex items-center justify-between shadow-sm">
             <div className="flex-1 flex flex-col items-center justify-center">
               <p className="text-xs text-muted-foreground font-medium">StaySecure PG</p>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">LookAroundPG</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">HE&SHE</h1>
             </div>
             <Sheet>
               <SheetTrigger asChild>
