@@ -12,6 +12,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { z } from 'zod';
+
+// Property validation schema
+const propertySchema = z.object({
+  title: z.string().trim().min(5, 'Title must be at least 5 characters').max(100, 'Title must be less than 100 characters'),
+  description: z.string().trim().max(2000, 'Description must be less than 2000 characters').optional(),
+  address: z.string().trim().min(10, 'Address must be at least 10 characters').max(300, 'Address must be less than 300 characters'),
+  city: z.string().trim().min(2, 'City must be at least 2 characters').max(50, 'City must be less than 50 characters'),
+  locality: z.string().trim().min(2, 'Locality must be at least 2 characters').max(100, 'Locality must be less than 100 characters'),
+  monthly_rent: z.number().int().min(1000, 'Rent must be at least ₹1,000').max(1000000, 'Rent must be less than ₹10,00,000'),
+  deposit: z.number().int().min(0, 'Deposit cannot be negative').max(5000000, 'Deposit must be less than ₹50,00,000'),
+  rules: z.string().trim().max(1000, 'Rules must be less than 1000 characters').optional(),
+  photos: z.array(z.string().url('Each photo must be a valid URL')).max(20, 'Maximum 20 photos allowed'),
+  gender_preference: z.enum(['male', 'female', 'unisex']),
+  available_from: z.string().min(1, 'Available from date is required'),
+  amenities: z.array(z.string()),
+});
 
 const AMENITIES = [
   { id: 'wifi', label: 'WiFi' },
@@ -63,25 +80,46 @@ const AddProperty = () => {
     setLoading(true);
 
     try {
+      // Parse and validate photo URLs
       const photoUrls = formData.photos
         .split('\n')
         .map((url) => url.trim())
         .filter((url) => url.length > 0);
 
-      const { error } = await supabase.from('properties').insert({
-        owner_id: user?.id,
+      // Prepare data for validation
+      const dataToValidate = {
         title: formData.title,
-        description: formData.description,
+        description: formData.description || '',
         address: formData.address,
         city: formData.city,
         locality: formData.locality,
         monthly_rent: parseInt(formData.monthly_rent),
         deposit: parseInt(formData.deposit),
-        gender_preference: formData.gender_preference as 'male' | 'female' | 'mixed',
+        gender_preference: formData.gender_preference as 'male' | 'female' | 'unisex',
         available_from: formData.available_from,
-        rules: formData.rules,
+        rules: formData.rules || '',
         amenities: formData.amenities,
         photos: photoUrls,
+      };
+
+      // Validate all inputs
+      const validatedData = propertySchema.parse(dataToValidate);
+
+      // Insert validated data
+      const { error } = await supabase.from('properties').insert({
+        owner_id: user?.id,
+        title: validatedData.title,
+        description: validatedData.description || null,
+        address: validatedData.address,
+        city: validatedData.city,
+        locality: validatedData.locality,
+        monthly_rent: validatedData.monthly_rent,
+        deposit: validatedData.deposit,
+        gender_preference: validatedData.gender_preference,
+        available_from: validatedData.available_from,
+        rules: validatedData.rules || null,
+        amenities: validatedData.amenities,
+        photos: validatedData.photos,
         status: 'active',
       } as any);
 
@@ -94,11 +132,21 @@ const AddProperty = () => {
 
       navigate('/owner/properties');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
-      });
+      // Handle Zod validation errors
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: firstError.message,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error.message,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -122,21 +170,30 @@ const AddProperty = () => {
                   <Input
                     id="title"
                     required
+                    minLength={5}
+                    maxLength={100}
                     value={formData.title}
                     onChange={(e) => handleChange('title', e.target.value)}
                     placeholder="e.g., Comfortable PG near Metro"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    5-100 characters
+                  </p>
                 </div>
 
                 <div>
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
+                    maxLength={2000}
                     value={formData.description}
                     onChange={(e) => handleChange('description', e.target.value)}
                     placeholder="Describe your property..."
                     rows={4}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Maximum 2000 characters
+                  </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -182,28 +239,38 @@ const AddProperty = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="rent">Monthly Rent (₹) *</Label>
-                    <Input
-                      id="rent"
-                      type="number"
-                      required
-                      value={formData.monthly_rent}
-                      onChange={(e) => handleChange('monthly_rent', e.target.value)}
-                      placeholder="10000"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="deposit">Security Deposit (₹) *</Label>
-                    <Input
-                      id="deposit"
-                      type="number"
-                      required
-                      value={formData.deposit}
-                      onChange={(e) => handleChange('deposit', e.target.value)}
-                      placeholder="10000"
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="rent">Monthly Rent (₹) *</Label>
+                  <Input
+                    id="rent"
+                    type="number"
+                    required
+                    min="1000"
+                    max="1000000"
+                    value={formData.monthly_rent}
+                    onChange={(e) => handleChange('monthly_rent', e.target.value)}
+                    placeholder="10000"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Between ₹1,000 and ₹10,00,000
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="deposit">Security Deposit (₹) *</Label>
+                  <Input
+                    id="deposit"
+                    type="number"
+                    required
+                    min="0"
+                    max="5000000"
+                    value={formData.deposit}
+                    onChange={(e) => handleChange('deposit', e.target.value)}
+                    placeholder="10000"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Maximum ₹50,00,000
+                  </p>
+                </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -268,11 +335,15 @@ const AddProperty = () => {
                   <Label htmlFor="rules">House Rules</Label>
                   <Textarea
                     id="rules"
+                    maxLength={1000}
                     value={formData.rules}
                     onChange={(e) => handleChange('rules', e.target.value)}
                     placeholder="Describe your house rules..."
                     rows={4}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Maximum 1000 characters
+                  </p>
                 </div>
 
                 <div>
