@@ -7,6 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { z } from 'zod';
+
+const reviewSchema = z.object({
+  rating: z.number().int().min(1, 'Please select a rating').max(5),
+  comment: z.string().trim().max(1000, 'Comment must be less than 1000 characters').optional()
+});
 
 interface Review {
   id: string;
@@ -88,10 +94,16 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
       return;
     }
 
-    if (rating === 0) {
+    // Validate review data
+    const validation = reviewSchema.safeParse({ 
+      rating, 
+      comment: comment || undefined 
+    });
+    
+    if (!validation.success) {
       toast({
-        title: 'Rating Required',
-        description: 'Please select a rating',
+        title: 'Invalid Review',
+        description: validation.error.errors[0].message,
         variant: 'destructive',
       });
       return;
@@ -103,8 +115,8 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
       const { error } = await supabase.from('reviews').upsert({
         property_id: propertyId,
         user_id: user.id,
-        rating,
-        comment,
+        rating: validation.data.rating,
+        comment: validation.data.comment || null,
       });
 
       if (error) throw error;
@@ -185,12 +197,18 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                     ))}
                   </div>
                 </div>
-                <Textarea
-                  placeholder="Share your experience..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  rows={4}
-                />
+                <div className="space-y-1">
+                  <Textarea
+                    placeholder="Share your experience..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    maxLength={1000}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {comment.length}/1000 characters
+                  </p>
+                </div>
                 <Button onClick={handleSubmitReview} disabled={submitting}>
                   {submitting ? 'Submitting...' : 'Submit Review'}
                 </Button>

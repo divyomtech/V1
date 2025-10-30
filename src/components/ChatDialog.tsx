@@ -8,6 +8,14 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { z } from 'zod';
+
+const messageSchema = z.object({
+  content: z.string()
+    .trim()
+    .min(1, 'Message cannot be empty')
+    .max(2000, 'Message must be less than 2000 characters')
+});
 
 interface Message {
   id: string;
@@ -144,7 +152,18 @@ export const ChatDialog = ({
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !conversationId || sending) return;
+    if (!conversationId || sending) return;
+
+    // Validate message content
+    const validation = messageSchema.safeParse({ content: newMessage });
+    if (!validation.success) {
+      toast({
+        title: 'Invalid Message',
+        description: validation.error.errors[0].message,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setSending(true);
     try {
@@ -152,7 +171,7 @@ export const ChatDialog = ({
         conversation_id: conversationId,
         from_user: user!.id,
         to_user: ownerId,
-        content: newMessage.trim(),
+        content: validation.data.content,
       });
 
       if (error) throw error;
@@ -232,12 +251,18 @@ export const ChatDialog = ({
         </ScrollArea>
 
         <form onSubmit={sendMessage} className="flex gap-2 pt-4 border-t">
-          <Input
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            disabled={sending}
-          />
+          <div className="flex-1 flex flex-col gap-1">
+            <Input
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              disabled={sending}
+              maxLength={2000}
+            />
+            <span className="text-xs text-muted-foreground">
+              {newMessage.length}/2000
+            </span>
+          </div>
           <Button type="submit" size="icon" disabled={sending || !newMessage.trim()}>
             <Send className="h-4 w-4" />
           </Button>
