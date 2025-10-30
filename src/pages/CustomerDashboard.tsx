@@ -260,7 +260,7 @@ const CustomerDashboard = () => {
           </div>
 
           {/* Cities Section */}
-          <div className="px-4 py-8 bg-background">
+          <div className="px-4 py-8 bg-primary/15">
             <h3 className="text-2xl font-bold mb-6 text-center">Choose Your City</h3>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {cities.map((city) => (
@@ -628,7 +628,7 @@ const CustomerDashboard = () => {
       </main>
 
       {/* Bottom Navigation - Instagram Style */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-primary/15 border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         <div className="flex items-center justify-around h-16 max-w-screen-sm mx-auto">
           <button
             onClick={() => navigate('/')}
