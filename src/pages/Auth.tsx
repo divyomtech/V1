@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import welcomeIllustration from '@/assets/welcome-illustration.png';
+import { supabase } from '@/integrations/supabase/client';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -16,21 +17,34 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password'>('welcome');
+  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password' | 'reset-password'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'customer' | 'owner' | 'admin'>('customer');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [contactInfo, setContactInfo] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const { signUp, signIn, resetPassword, user, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && !loading) {
+    // Check for password reset token in URL
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    
+    if (type === 'recovery') {
+      setView('reset-password');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && !loading && view !== 'reset-password') {
       navigate('/');
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, view]);
 
   const validateForm = () => {
     try {
@@ -66,29 +80,90 @@ const Auth = () => {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email) {
+    if (!contactInfo) {
       toast({
         variant: "destructive",
-        title: "Email required",
-        description: "Please enter your email address",
+        title: "Input required",
+        description: "Please enter your email or mobile number",
       });
       return;
     }
 
-    const emailSchema = z.string().email();
-    if (!emailSchema.safeParse(email).success) {
+    // Check if it's an email or mobile number
+    const isEmail = contactInfo.includes('@');
+    
+    if (isEmail) {
+      const emailSchema = z.string().email();
+      if (!emailSchema.safeParse(contactInfo).success) {
+        toast({
+          variant: "destructive",
+          title: "Invalid email",
+          description: "Please enter a valid email address",
+        });
+        return;
+      }
+
+      const result = await resetPassword(contactInfo);
+      if (!result.error) {
+        toast({
+          title: "Reset link sent",
+          description: "Check your email for the password reset link",
+        });
+        setView('login');
+        setContactInfo('');
+      }
+    } else {
+      // Mobile number - SMS not configured
       toast({
         variant: "destructive",
-        title: "Invalid email",
-        description: "Please enter a valid email address",
+        title: "SMS not configured",
+        description: "Please use email for password reset",
+      });
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Passwords don't match",
+        description: "Please make sure both passwords are the same",
       });
       return;
     }
 
-    const result = await resetPassword(email);
-    if (!result.error) {
+    if (newPassword.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Password too short",
+        description: "Password must be at least 6 characters",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password updated",
+        description: "Your password has been successfully reset",
+      });
+      
+      setNewPassword('');
+      setConfirmPassword('');
       setView('login');
-      setEmail('');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to reset password",
+        description: error.message,
+      });
     }
   };
 
@@ -227,7 +302,7 @@ const Auth = () => {
           <div className="mb-8">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
-              Enter your email to reset your password
+              Enter your email or mobile number to reset your password
             </p>
           </div>
 
@@ -235,17 +310,74 @@ const Auth = () => {
           <form onSubmit={handleForgotPassword} className="space-y-4 flex-1">
             <div className="space-y-4">
               <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
+                type="text"
+                value={contactInfo}
+                onChange={(e) => setContactInfo(e.target.value)}
+                placeholder="Email or Mobile Number"
+                className="h-12 text-base"
+              />
+              <p className="text-xs text-muted-foreground">
+                Note: SMS verification requires additional setup. Please use email for now.
+              </p>
+            </div>
+            
+            <div className="pt-6">
+              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+                Send Reset Link
+              </Button>
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setView('login')}
+              className="text-muted-foreground hover:text-primary font-medium"
+            >
+              ← Back to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Reset Password Screen (after clicking email link)
+  if (view === 'reset-password') {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              Create your new password
+            </p>
+          </div>
+
+          {/* Reset Password Form */}
+          <form onSubmit={handleResetPassword} className="space-y-4 flex-1">
+            <div className="space-y-4">
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New Password"
+                className="h-12 text-base"
+              />
+              
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm New Password"
                 className="h-12 text-base"
               />
             </div>
             
             <div className="pt-6">
               <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
-                Send Reset Link
+                Reset Password
               </Button>
             </div>
           </form>
