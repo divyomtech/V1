@@ -19,10 +19,10 @@ const HeroSection = () => {
       {/* Content */}
       <div className="container relative z-10 px-4 py-20 text-center">
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-          Find Your Perfect PG
+          Find Your Perfect <span className="text-primary">PG</span> Home
         </h1>
         <p className="text-xl md:text-2xl text-white/90 mb-12 max-w-2xl mx-auto">
-          Discover comfortable and affordable accommodations for Boys, Girls, and Everyone
+          Discover safe, comfortable, and affordable paying guest accommodations
         </p>
 
         {/* Search Bar */}
@@ -37,7 +37,7 @@ const HeroSection = () => {
             </div>
             <Button 
               size="lg" 
-              className="h-14 px-8 text-lg bg-primary hover:bg-primary-hover"
+              className="h-14 px-8 text-lg"
             >
               <Search className="mr-2 h-5 w-5" />
               Search
