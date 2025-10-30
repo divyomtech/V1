@@ -178,8 +178,8 @@ const CustomerDashboard = () => {
   return (
     <div className="min-h-screen flex flex-col pb-16">
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto" style={{ backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-        <div className="min-h-full bg-background/95 backdrop-blur-sm">
+      <main className="flex-1 overflow-y-auto relative" style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+        <div className="min-h-full relative z-10">
           {/* Header Section */}
           <div className="sticky top-0 z-20 bg-primary border-b border-border px-4 py-3 flex items-center justify-between">
             <div className="flex-1 flex flex-col items-center justify-center">
