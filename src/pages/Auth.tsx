@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import welcomeIllustration from '@/assets/welcome-illustration.png';
 
@@ -15,13 +16,14 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const [view, setView] = useState<'welcome' | 'login' | 'signup'>('welcome');
+  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'customer' | 'owner' | 'admin'>('customer');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { signUp, signIn, user, loading } = useAuth();
+  const { signUp, signIn, resetPassword, user, loading } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,6 +60,35 @@ const Auth = () => {
       await signIn(email, password);
     } else {
       await signUp(email, password, name, role);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Email required",
+        description: "Please enter your email address",
+      });
+      return;
+    }
+
+    const emailSchema = z.string().email();
+    if (!emailSchema.safeParse(email).success) {
+      toast({
+        variant: "destructive",
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+      });
+      return;
+    }
+
+    const result = await resetPassword(email);
+    if (!result.error) {
+      setView('login');
+      setEmail('');
     }
   };
 
@@ -152,6 +183,16 @@ const Auth = () => {
                 Login
               </Button>
             </div>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setView('forgot-password')}
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Forgot Password?
+              </button>
+            </div>
           </form>
 
           {/* Footer */}
@@ -171,6 +212,52 @@ const Auth = () => {
                 Sign Up
               </button>
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Forgot Password Screen
+  if (view === 'forgot-password') {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              Enter your email to reset your password
+            </p>
+          </div>
+
+          {/* Forgot Password Form */}
+          <form onSubmit={handleForgotPassword} className="space-y-4 flex-1">
+            <div className="space-y-4">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="h-12 text-base"
+              />
+            </div>
+            
+            <div className="pt-6">
+              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+                Send Reset Link
+              </Button>
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setView('login')}
+              className="text-muted-foreground hover:text-primary font-medium"
+            >
+              ← Back to Login
+            </button>
           </div>
         </div>
       </div>
