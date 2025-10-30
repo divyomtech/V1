@@ -178,18 +178,18 @@ const CustomerDashboard = () => {
   return (
     <div className="min-h-screen flex flex-col pb-16">
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative" style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-        <div className="min-h-full relative z-10">
+      <main className="flex-1 overflow-y-auto">
+        <div className="min-h-full bg-background">
           {/* Header Section */}
-          <div className="sticky top-0 z-20 bg-primary border-b border-border px-4 py-3 flex items-center justify-between">
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-4 flex items-center justify-between shadow-sm">
             <div className="flex-1 flex flex-col items-center justify-center">
-              <p className="text-xs text-primary-foreground/80 font-medium">StaySecure PG</p>
-              <h1 className="text-2xl font-bold text-primary-foreground">HE&SHE</h1>
+              <p className="text-xs text-muted-foreground font-medium">StaySecure PG</p>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">LookAroundPG</h1>
             </div>
             <Sheet>
               <SheetTrigger asChild>
-                <button className="p-2 hover:bg-accent rounded-lg transition-colors">
-                  <Menu className="h-6 w-6" />
+                <button className="p-2 hover:bg-secondary rounded-lg transition-colors">
+                  <Menu className="h-6 w-6 text-foreground" />
                 </button>
               </SheetTrigger>
               <SheetContent>
@@ -232,24 +232,36 @@ const CustomerDashboard = () => {
             </Sheet>
           </div>
 
-          {/* Quick Search Bar */}
-          <div className="px-4 py-4 bg-background/95 backdrop-blur-sm border-b border-border">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search PGs by name, city, or area..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1"
-              />
-              <Button onClick={handleSearch} size="icon">
-                <Search className="h-4 w-4" />
-              </Button>
+          {/* Hero Search Section */}
+          <div className="relative px-4 py-12 bg-gradient-to-br from-primary/20 via-accent/10 to-background">
+            <div className="max-w-2xl mx-auto text-center mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">
+                Find Your Perfect <span className="text-primary">PG</span> Home
+              </h2>
+              <p className="text-muted-foreground">
+                Discover safe, comfortable, and affordable accommodations
+              </p>
+            </div>
+            <div className="max-w-2xl mx-auto">
+              <div className="flex gap-2 bg-white rounded-xl shadow-lg p-2">
+                <Input
+                  placeholder="Search by city, locality or PG name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  className="flex-1 border-0 focus-visible:ring-0"
+                />
+                <Button onClick={handleSearch} size="lg" className="px-6">
+                  <Search className="h-5 w-5 mr-2" />
+                  Search
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Cities Stories Section */}
-          <div className="sticky top-[117px] z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+          {/* Cities Section */}
+          <div className="px-4 py-8 bg-background">
+            <h3 className="text-2xl font-bold mb-6 text-center">Choose Your City</h3>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {cities.map((city) => (
                 <button
@@ -257,14 +269,14 @@ const CustomerDashboard = () => {
                   onClick={() => handleCityClick(city.name)}
                   className="flex flex-col items-center gap-2 flex-shrink-0"
                 >
-                  <div className={`w-16 h-16 rounded-full overflow-hidden flex items-center justify-center transition-all ${
+                  <div className={`w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center transition-all shadow-md ${
                     selectedCity === city.name 
-                      ? 'ring-2 ring-primary ring-offset-2' 
-                      : 'hover:ring-2 hover:ring-accent'
+                      ? 'ring-4 ring-primary scale-105' 
+                      : 'hover:ring-4 hover:ring-accent/50 hover:scale-105'
                   }`}>
                     <img src={city.image} alt={city.name} className="w-full h-full object-cover" />
                   </div>
-                  <span className="text-xs font-medium">{city.name}</span>
+                  <span className="text-sm font-semibold">{city.name}</span>
                 </button>
               ))}
               <Sheet>
@@ -300,8 +312,8 @@ const CustomerDashboard = () => {
 
           {/* Sub-locations Section */}
           {selectedCity && selectedCityData && (
-            <div className="px-4 py-3 bg-accent/30 border-b border-border">
-              <h3 className="font-semibold mb-2">{selectedCity}</h3>
+            <div className="px-4 py-6 bg-secondary/30 border-y border-border">
+              <h3 className="font-bold text-lg mb-3">Popular Areas in {selectedCity}</h3>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 {selectedCityData.areas.map((area) => (
                   <button
@@ -411,9 +423,9 @@ const CustomerDashboard = () => {
         {/* Welcome Section - only show when no city selected */}
         {!selectedCity && (
           <>
-            <div className="px-4 py-6 border-b border-border">
-              <h2 className="text-2xl font-bold mb-1">Welcome back, {profile?.name || 'Guest'}!</h2>
-              <p className="text-muted-foreground text-sm">Find your perfect PG</p>
+            <div className="px-4 py-8 bg-gradient-to-r from-primary/10 to-accent/10 border-y border-border">
+              <h2 className="text-3xl font-bold mb-2">Welcome back, {profile?.name || 'Guest'}!</h2>
+              <p className="text-muted-foreground">Find your perfect PG accommodation</p>
             </div>
 
             {/* Quick Stats Cards */}
