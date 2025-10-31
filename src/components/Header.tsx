@@ -85,6 +85,9 @@ const Header = () => {
           </>
         ) : (
           <div className="flex items-center gap-3">
+            <Link to="/auth?mode=admin">
+              <Button variant="outline">Admin</Button>
+            </Link>
             <Link to="/auth">
               <Button variant="ghost">Login</Button>
             </Link>

@@ -22,32 +22,52 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'customer' | 'owner' | 'admin'>('customer');
+  const [signupRole, setSignupRole] = useState<'customer' | 'owner' | 'admin'>('customer');
+  const [isAdminMode, setIsAdminMode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [contactInfo, setContactInfo] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpPhone, setOtpPhone] = useState('');
-  const { signUp, signIn, resetPassword, user, loading } = useAuth();
+  const { signUp, signIn, resetPassword, user, loading, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check for password reset token in URL
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get('type');
-    
-    if (type === 'recovery') {
-      setView('reset-password');
-    }
-  }, []);
+useEffect(() => {
+  // Check for password reset token in URL
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  const type = hashParams.get('type');
+  
+  if (type === 'recovery') {
+    setView('reset-password');
+  }
 
-  useEffect(() => {
-    if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
+  // Check for admin mode in query string
+  const qs = new URLSearchParams(window.location.search);
+  const mode = qs.get('mode');
+  if (mode === 'admin') {
+    setIsAdminMode(true);
+    setView('login');
+  }
+}, []);
+
+useEffect(() => {
+  if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
+    if (role === 'admin') {
+      navigate('/admin');
+    } else {
+      if (isAdminMode) {
+        toast({
+          variant: 'destructive',
+          title: "No admin access",
+          description: "This account doesn't have admin privileges. Logged in as a regular user.",
+        });
+      }
       navigate('/');
     }
-  }, [user, loading, navigate, view]);
+  }
+}, [user, role, loading, navigate, view, isAdminMode, toast]);
 
   const validateForm = () => {
     try {
@@ -76,7 +96,7 @@ const Auth = () => {
     if (view === 'login') {
       await signIn(email, password);
     } else {
-      await signUp(email, password, name, role);
+      await signUp(email, password, name, signupRole);
     }
   };
 
@@ -286,20 +306,27 @@ const Auth = () => {
               Get Started
             </Button>
             
-            <div className="flex items-center justify-center gap-8">
-              <button
-                onClick={() => setView('login')}
-                className="text-foreground hover:text-primary font-medium text-base"
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setView('signup')}
-                className="text-foreground hover:text-primary font-medium text-base"
-              >
-                Sign Up
-              </button>
-            </div>
+<div className="flex items-center justify-center gap-8">
+  <button
+    onClick={() => setView('login')}
+    className="text-foreground hover:text-primary font-medium text-base"
+  >
+    Login
+  </button>
+  <button
+    onClick={() => setView('signup')}
+    className="text-foreground hover:text-primary font-medium text-base"
+  >
+    Sign Up
+  </button>
+  <button
+    onClick={() => { setIsAdminMode(true); setView('login'); }}
+    className="text-primary hover:underline font-medium text-base"
+    aria-label="Go to Admin Login"
+  >
+    Admin Portal
+  </button>
+</div>
           </div>
         </div>
       </div>
@@ -312,12 +339,32 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-5xl font-bold mb-3">He&She</h1>
-            <p className="text-base text-muted-foreground">
-              Welcome back! Please login to continue
-            </p>
-          </div>
+<div className="mb-8">
+  <h1 className="text-5xl font-bold mb-3">He&She</h1>
+  <p className="text-base text-muted-foreground">
+    {isAdminMode ? 'Admin Portal — authorized access only' : 'Welcome back! Please login to continue'}
+  </p>
+</div>
+
+{/* Mode Switch */}
+<div className="grid grid-cols-2 gap-2 mb-6">
+  <Button
+    type="button"
+    variant={isAdminMode ? 'outline' : 'default'}
+    onClick={() => setIsAdminMode(false)}
+    className="h-10"
+  >
+    User Login
+  </Button>
+  <Button
+    type="button"
+    variant={isAdminMode ? 'default' : 'outline'}
+    onClick={() => setIsAdminMode(true)}
+    className="h-10"
+  >
+    Admin Login
+  </Button>
+</div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4 flex-1">
@@ -578,7 +625,7 @@ const Auth = () => {
             
             <div className="space-y-3 pt-2">
               <Label className="text-base">I want to</Label>
-              <RadioGroup value={role} onValueChange={(v) => setRole(v as typeof role)}>
+              <RadioGroup value={signupRole} onValueChange={(v) => setSignupRole(v as typeof signupRole)}>
                 <div className="flex items-center space-x-3 p-3 rounded-lg border">
                   <RadioGroupItem value="customer" id="customer" />
                   <Label htmlFor="customer" className="font-normal cursor-pointer flex-1 text-base">
