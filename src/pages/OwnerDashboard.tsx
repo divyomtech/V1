@@ -47,6 +47,7 @@ const OwnerDashboard = () => {
     revenueTrend: 0,
     propertyPerformance: []
   });
+  const [ownerProfile, setOwnerProfile] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,6 +58,15 @@ const OwnerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      // Check owner approval status first
+      const { data: ownerData } = await supabase
+        .from('owners_profile')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+      
+      setOwnerProfile(ownerData);
+
       const [propertiesRes, bookingsRes, profileRes, paymentsRes] = await Promise.all([
         supabase.from('properties').select('*').eq('owner_id', user?.id).order('created_at', { ascending: false }),
         supabase
@@ -288,6 +298,35 @@ const OwnerDashboard = () => {
       </div>
 
       <main className="flex-1 container py-8">
+
+        {/* Owner Approval Status Banner */}
+        {ownerProfile && ownerProfile.approval_status === 'pending' && (
+          <Card className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <UserCheck className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="font-semibold text-orange-900 dark:text-orange-100">Owner Approval Pending</p>
+                  <p className="text-sm text-orange-700 dark:text-orange-300">Your account is under review. You'll be able to add properties once approved by admin.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {ownerProfile && ownerProfile.approval_status === 'rejected' && (
+          <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <UserCheck className="h-5 w-5 text-red-600" />
+                <div>
+                  <p className="font-semibold text-red-900 dark:text-red-100">Owner Application Rejected</p>
+                  <p className="text-sm text-red-700 dark:text-red-300">Your owner application was not approved. Please contact support for more information.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Profile Status Banner */}
         {profile && profile.profile_verification_status === 'pending' && (

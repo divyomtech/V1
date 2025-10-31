@@ -18,6 +18,7 @@ import Referrals from "./pages/Referrals";
 import OwnerProperties from "./pages/owner/Properties";
 import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -85,6 +86,11 @@ const App = () => (
             <Route path="/owner/bookings" element={
               <ProtectedRoute>
                 <OwnerBookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

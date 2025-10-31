@@ -1,4 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import CustomerDashboard from "./CustomerDashboard";
 import OwnerDashboard from "./OwnerDashboard";
 import Header from "@/components/Header";
@@ -9,6 +11,13 @@ import Footer from "@/components/Footer";
 
 const Index = () => {
   const { role, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (role === 'admin') {
+      navigate('/admin');
+    }
+  }, [role, navigate]);
 
   if (loading) {
     return (
@@ -24,19 +33,6 @@ const Index = () => {
 
   if (role === 'customer') {
     return <CustomerDashboard />;
-  }
-
-  if (role === 'admin') {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="container py-12">
-          <h1 className="text-4xl font-bold mb-4">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage users, properties, and system settings.</p>
-        </div>
-        <Footer />
-      </div>
-    );
   }
 
   // Default landing page for non-authenticated users
