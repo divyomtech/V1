@@ -117,15 +117,15 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     setUsersLoading(true);
     try {
-      // Fetch all profiles
+      // Fetch all profiles with email
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, name, phone')
+        .select('id, name, phone, email, created_at')
         .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
 
-      // Fetch user roles and auth data
+      // Fetch user roles
       const usersWithRoles = await Promise.all(
         (profilesData || []).map(async (profile) => {
           const { data: roleData } = await supabase
@@ -134,15 +134,13 @@ const AdminDashboard = () => {
             .eq('user_id', profile.id)
             .single();
 
-          const { data: authData } = await supabase.auth.admin.getUserById(profile.id);
-
           return {
             id: profile.id,
             name: profile.name || 'Unknown',
             phone: profile.phone || 'N/A',
-            email: authData?.user?.email || 'N/A',
+            email: profile.email || 'N/A',
             role: (roleData?.role || 'customer') as 'customer' | 'owner' | 'admin',
-            created_at: authData?.user?.created_at || new Date().toISOString(),
+            created_at: profile.created_at || new Date().toISOString(),
           };
         })
       );

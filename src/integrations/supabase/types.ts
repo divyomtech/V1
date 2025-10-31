@@ -396,6 +396,7 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          email: string | null
           emergency_contact_address: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -415,6 +416,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          email?: string | null
           emergency_contact_address?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -434,6 +436,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          email?: string | null
           emergency_contact_address?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
