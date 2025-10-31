@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Check, X, Loader2, Shield, Users, Home, FileText, UserCog } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface OwnerApplication {
@@ -44,6 +45,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, totalProperties: 0 });
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [roleChangeDialog, setRoleChangeDialog] = useState<{ open: boolean; userId: string; newRole: 'customer' | 'owner' | 'admin'; userName: string } | null>(null);
 
   useEffect(() => {
     if (role !== 'admin') {
@@ -158,6 +160,33 @@ const AdminDashboard = () => {
   };
 
   const handleRoleChange = async (userId: string, newRole: 'customer' | 'owner' | 'admin') => {
+    // Prevent admins from changing their own role
+    if (userId === user?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Action Not Allowed',
+        description: 'You cannot change your own role for security reasons.',
+      });
+      return;
+    }
+
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+
+    // Show confirmation dialog
+    setRoleChangeDialog({
+      open: true,
+      userId,
+      newRole,
+      userName: targetUser.name,
+    });
+  };
+
+  const confirmRoleChange = async () => {
+    if (!roleChangeDialog) return;
+
+    const { userId, newRole, userName } = roleChangeDialog;
+
     try {
       // Delete existing role
       await supabase
@@ -172,9 +201,17 @@ const AdminDashboard = () => {
 
       if (error) throw error;
 
+      // Insert audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action: 'role_change',
+        details: `Changed ${userName}'s role to ${newRole}`,
+        ip_address: 'system',
+      });
+
       toast({
         title: 'Role updated',
-        description: `User role has been changed to ${newRole}.`,
+        description: `${userName}'s role has been changed to ${newRole}.`,
       });
 
       fetchUsers();
@@ -184,6 +221,8 @@ const AdminDashboard = () => {
         title: 'Error',
         description: error.message,
       });
+    } finally {
+      setRoleChangeDialog(null);
     }
   };
 
@@ -315,6 +354,7 @@ const AdminDashboard = () => {
                         <Select
                           value={user.role}
                           onValueChange={(value) => handleRoleChange(user.id, value as any)}
+                          disabled={user.id === user?.id}
                         >
                           <SelectTrigger className="w-32">
                             <SelectValue />
@@ -483,6 +523,24 @@ const AdminDashboard = () => {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Role Change Confirmation Dialog */}
+        <AlertDialog open={roleChangeDialog?.open || false} onOpenChange={(open) => !open && setRoleChangeDialog(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Role Change</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to change <strong>{roleChangeDialog?.userName}</strong>'s role to <strong>{roleChangeDialog?.newRole}</strong>?
+                <br /><br />
+                This action will immediately affect their access permissions and will be logged in the audit trail.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmRoleChange}>Confirm Change</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
