@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Check, X, Loader2, Shield, Users, Home, FileText } from 'lucide-react';
+import { Check, X, Loader2, Shield, Users, Home, FileText, UserCog } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface OwnerApplication {
   id: string;
@@ -25,6 +26,15 @@ interface OwnerApplication {
   };
 }
 
+interface UserWithRole {
+  id: string;
+  email: string;
+  name: string;
+  phone?: string;
+  role: 'customer' | 'owner' | 'admin';
+  created_at: string;
+}
+
 const AdminDashboard = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
@@ -32,6 +42,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<OwnerApplication[]>([]);
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, totalProperties: 0 });
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
     if (role !== 'admin') {
@@ -40,6 +52,7 @@ const AdminDashboard = () => {
     }
     fetchApplications();
     fetchStats();
+    fetchUsers();
   }, [role, navigate]);
 
   const fetchApplications = async () => {
@@ -98,6 +111,81 @@ const AdminDashboard = () => {
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      // Fetch all profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, phone')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // Fetch user roles and auth data
+      const usersWithRoles = await Promise.all(
+        (profilesData || []).map(async (profile) => {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', profile.id)
+            .single();
+
+          const { data: authData } = await supabase.auth.admin.getUserById(profile.id);
+
+          return {
+            id: profile.id,
+            name: profile.name || 'Unknown',
+            phone: profile.phone || 'N/A',
+            email: authData?.user?.email || 'N/A',
+            role: (roleData?.role || 'customer') as 'customer' | 'owner' | 'admin',
+            created_at: authData?.user?.created_at || new Date().toISOString(),
+          };
+        })
+      );
+
+      setUsers(usersWithRoles);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error fetching users',
+        description: error.message,
+      });
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: 'customer' | 'owner' | 'admin') => {
+    try {
+      // Delete existing role
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      // Insert new role
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: newRole });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Role updated',
+        description: `User role has been changed to ${newRole}.`,
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message,
+      });
     }
   };
 
@@ -193,6 +281,60 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* User Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCog className="h-5 w-5" />
+              User Management
+            </CardTitle>
+            <CardDescription>Manage user roles and permissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {usersLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {users.map((user) => (
+                  <Card key={user.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{user.name}</span>
+                            <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                              {user.role}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground space-y-0.5">
+                            <p>Email: {user.email}</p>
+                            <p>Phone: {user.phone}</p>
+                          </div>
+                        </div>
+                        <Select
+                          value={user.role}
+                          onValueChange={(value) => handleRoleChange(user.id, value as any)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="customer">Customer</SelectItem>
+                            <SelectItem value="owner">Owner</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Applications */}
         <Card>
