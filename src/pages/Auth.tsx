@@ -356,6 +356,9 @@ const Auth = () => {
                 Forgot Password?
               </button>
             </div>
+            <p className="mt-3 text-xs text-muted-foreground text-center">
+              Admin accounts are assigned in the backend. Just log in—if your user has the admin role, you'll be redirected to the Admin Dashboard.
+            </p>
           </form>
 
           {/* Footer */}

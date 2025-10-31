@@ -41,7 +41,7 @@ const Header = () => {
           </Link>
         </div>
         
-        {user && (
+{user ? (
           <>
             <nav className="hidden md:flex items-center gap-6">
               {getRoleBasedNav().map((item) => (
@@ -83,7 +83,17 @@ const Header = () => {
               </Sheet>
             </div>
           </>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Link to="/auth">
+              <Button variant="ghost">Login</Button>
+            </Link>
+            <Link to="/auth">
+              <Button>Sign Up</Button>
+            </Link>
+          </div>
         )}
+
       </div>
     </header>
   );
