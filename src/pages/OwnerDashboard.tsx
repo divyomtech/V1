@@ -59,9 +59,17 @@ const OwnerDashboard = () => {
     try {
       const [propertiesRes, bookingsRes, profileRes, paymentsRes] = await Promise.all([
         supabase.from('properties').select('*').eq('owner_id', user?.id).order('created_at', { ascending: false }),
-        supabase.from('bookings').select('*, properties!inner(owner_id, title), profiles!bookings_customer_id_fkey(name, phone, profile_photo)').eq('properties.owner_id', user?.id).order('created_at', { ascending: false }),
+        supabase
+          .from('bookings')
+          .select('*, properties!inner(owner_id, title)')
+          .eq('properties.owner_id', user?.id)
+          .order('created_at', { ascending: false }),
         supabase.from('profiles').select('*').eq('id', user?.id).single(),
-        supabase.from('payments').select('*, bookings!inner(properties!inner(owner_id, title), customer_id, profiles!bookings_customer_id_fkey(name))').eq('bookings.properties.owner_id', user?.id).order('created_at', { ascending: false })
+        supabase
+          .from('payments')
+          .select('*, bookings!inner(properties!inner(owner_id, title), customer_id)')
+          .eq('bookings.properties.owner_id', user?.id)
+          .order('created_at', { ascending: false })
       ]);
 
       if (propertiesRes.data) {
