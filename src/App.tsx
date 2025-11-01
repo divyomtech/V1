@@ -18,6 +18,7 @@ import Referrals from "./pages/Referrals";
 import OwnerProperties from "./pages/owner/Properties";
 import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
+import OwnerDashboard from "./pages/OwnerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -86,6 +87,11 @@ const App = () => (
             <Route path="/owner/bookings" element={
               <ProtectedRoute>
                 <OwnerBookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/dashboard" element={
+              <ProtectedRoute>
+                <OwnerDashboard />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={

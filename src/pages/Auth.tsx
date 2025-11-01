@@ -56,11 +56,20 @@ useEffect(() => {
   if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
     if (role === 'admin') {
       navigate('/admin');
+    } else if (loginMode === 'owner') {
+      // Direct owners to the owner area even if role assignment is pending
+      if (role !== 'owner') {
+        toast({
+          title: 'Owner mode',
+          description: 'Routing to owner area. If approval is pending, some features may be limited.',
+        });
+      }
+      navigate('/owner/dashboard');
     } else {
       if (loginMode === 'admin') {
         toast({
           variant: 'destructive',
-          title: "No admin access",
+          title: 'No admin access',
           description: "This account doesn't have admin privileges. Logged in as a regular user.",
         });
       }
