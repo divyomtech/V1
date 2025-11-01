@@ -12,12 +12,15 @@ const Header = () => {
   const location = useLocation();
 
   const getRoleBasedNav = () => {
-    if (role === 'owner') return [
-      { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+    // Check if on owner routes
+    const isOwnerRoute = location.pathname.startsWith('/owner');
+    
+    if (role === 'owner' || isOwnerRoute) return [
+      { label: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
       { label: 'My Properties', href: '/owner/properties', icon: Building2 },
       { label: 'Bookings', href: '/owner/bookings', icon: Building2 },
     ];
-    if (role === 'admin') return [{ label: 'Admin Dashboard', href: '/', icon: LayoutDashboard }];
+    if (role === 'admin') return [{ label: 'Admin Dashboard', href: '/admin', icon: LayoutDashboard }];
     return [
       { label: 'Search PGs', href: '/search', icon: Home },
       { label: 'Favorites', href: '/favorites', icon: Heart },
