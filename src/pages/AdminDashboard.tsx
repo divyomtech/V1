@@ -37,7 +37,7 @@ interface UserWithRole {
 }
 
 const AdminDashboard = () => {
-  const { user, role } = useAuth();
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,8 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [roleChangeDialog, setRoleChangeDialog] = useState<{ open: boolean; userId: string; newRole: 'customer' | 'owner' | 'admin'; userName: string } | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
     if (role !== 'admin') {
@@ -55,6 +57,7 @@ const AdminDashboard = () => {
     fetchApplications();
     fetchStats();
     fetchUsers();
+    fetchAuditLogs();
   }, [role, navigate]);
 
   const fetchApplications = async () => {
@@ -157,6 +160,29 @@ const AdminDashboard = () => {
     } finally {
       setUsersLoading(false);
     }
+  };
+
+  const fetchAuditLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*, profiles(name)')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setAuditLogs(data || []);
+    } catch (error: any) {
+      console.error('Error fetching audit logs:', error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
   };
 
   const handleRoleChange = async (userId: string, newRole: 'customer' | 'owner' | 'admin') => {
@@ -275,9 +301,14 @@ const AdminDashboard = () => {
             </h1>
             <p className="text-muted-foreground mt-2">Manage owner applications and platform settings</p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            Back to Home
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/')}>
+              Back to Home
+            </Button>
+            <Button variant="destructive" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -318,6 +349,49 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Activity - Audit Logs */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Recent Activity
+            </CardTitle>
+            <CardDescription>System audit logs and recent actions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {logsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <Alert>
+                <AlertDescription>No recent activity to display.</AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {auditLogs.map((log) => (
+                  <Card key={log.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{log.action}</Badge>
+                            <span className="text-sm font-medium">{log.profiles?.name || 'System'}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{log.details}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* User Management */}
         <Card>
