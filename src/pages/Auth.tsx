@@ -23,7 +23,7 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [signupRole, setSignupRole] = useState<'customer' | 'owner' | 'admin'>('customer');
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [loginMode, setLoginMode] = useState<'user' | 'owner' | 'admin'>('user');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [contactInfo, setContactInfo] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -43,11 +43,11 @@ useEffect(() => {
     setView('reset-password');
   }
 
-  // Check for admin mode in query string
+  // Check for login mode in query string
   const qs = new URLSearchParams(window.location.search);
   const mode = qs.get('mode');
-  if (mode === 'admin') {
-    setIsAdminMode(true);
+  if (mode === 'admin' || mode === 'owner') {
+    setLoginMode(mode as 'user' | 'owner' | 'admin');
     setView('login');
   }
 }, []);
@@ -57,7 +57,7 @@ useEffect(() => {
     if (role === 'admin') {
       navigate('/admin');
     } else {
-      if (isAdminMode) {
+      if (loginMode === 'admin') {
         toast({
           variant: 'destructive',
           title: "No admin access",
@@ -67,7 +67,7 @@ useEffect(() => {
       navigate('/');
     }
   }
-}, [user, role, loading, navigate, view, isAdminMode, toast]);
+}, [user, role, loading, navigate, view, loginMode, toast]);
 
   const validateForm = () => {
     try {
@@ -320,7 +320,7 @@ useEffect(() => {
     Sign Up
   </button>
   <button
-    onClick={() => { setIsAdminMode(true); setView('login'); }}
+    onClick={() => { setLoginMode('admin'); setView('login'); }}
     className="text-primary hover:underline font-medium text-base"
     aria-label="Go to Admin Login"
   >
@@ -342,24 +342,32 @@ useEffect(() => {
 <div className="mb-8">
   <h1 className="text-5xl font-bold mb-3">He&She</h1>
   <p className="text-base text-muted-foreground">
-    {isAdminMode ? 'Admin Portal — authorized access only' : 'Welcome back! Please login to continue'}
+    {loginMode === 'admin' ? 'Admin Portal — authorized access only' : loginMode === 'owner' ? 'Owner Portal — manage your properties' : 'Welcome back! Please login to continue'}
   </p>
 </div>
 
 {/* Mode Switch */}
-<div className="grid grid-cols-2 gap-2 mb-6">
+<div className="grid grid-cols-3 gap-2 mb-6">
   <Button
     type="button"
-    variant={isAdminMode ? 'outline' : 'default'}
-    onClick={() => setIsAdminMode(false)}
+    variant={loginMode === 'user' ? 'default' : 'outline'}
+    onClick={() => setLoginMode('user')}
     className="h-10"
   >
     User Login
   </Button>
   <Button
     type="button"
-    variant={isAdminMode ? 'default' : 'outline'}
-    onClick={() => setIsAdminMode(true)}
+    variant={loginMode === 'owner' ? 'default' : 'outline'}
+    onClick={() => setLoginMode('owner')}
+    className="h-10"
+  >
+    Owner Login
+  </Button>
+  <Button
+    type="button"
+    variant={loginMode === 'admin' ? 'default' : 'outline'}
+    onClick={() => setLoginMode('admin')}
     className="h-10"
   >
     Admin Login
