@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import welcomeIllustration from '@/assets/welcome-illustration.png';
-import { supabase } from '@/integrations/supabase/client';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 const authSchema = z.object({
@@ -34,49 +33,49 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-useEffect(() => {
-  // Check for password reset token in URL
-  const hashParams = new URLSearchParams(window.location.hash.substring(1));
-  const type = hashParams.get('type');
-  
-  if (type === 'recovery') {
-    setView('reset-password');
-  }
+  useEffect(() => {
+    // Check for password reset token in URL
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
 
-  // Check for login mode in query string
-  const qs = new URLSearchParams(window.location.search);
-  const mode = qs.get('mode');
-  if (mode === 'admin' || mode === 'owner') {
-    setLoginMode(mode as 'user' | 'owner' | 'admin');
-    setView('login');
-  }
-}, []);
-
-useEffect(() => {
-  if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
-    if (role === 'admin') {
-      navigate('/admin');
-    } else if (loginMode === 'owner') {
-      // Direct owners to the owner area even if role assignment is pending
-      if (role !== 'owner') {
-        toast({
-          title: 'Owner mode',
-          description: 'Routing to owner area. If approval is pending, some features may be limited.',
-        });
-      }
-      navigate('/owner/dashboard');
-    } else {
-      if (loginMode === 'admin') {
-        toast({
-          variant: 'destructive',
-          title: 'No admin access',
-          description: "This account doesn't have admin privileges. Logged in as a regular user.",
-        });
-      }
-      navigate('/');
+    if (type === 'recovery') {
+      setView('reset-password');
     }
-  }
-}, [user, role, loading, navigate, view, loginMode, toast]);
+
+    // Check for login mode in query string
+    const qs = new URLSearchParams(window.location.search);
+    const mode = qs.get('mode');
+    if (mode === 'admin' || mode === 'owner') {
+      setLoginMode(mode as 'user' | 'owner' | 'admin');
+      setView('login');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
+      if (role === 'admin') {
+        navigate('/admin');
+      } else if (loginMode === 'owner') {
+        // Direct owners to the owner area even if role assignment is pending
+        if (role !== 'owner') {
+          toast({
+            title: 'Owner mode',
+            description: 'Routing to owner area. If approval is pending, some features may be limited.',
+          });
+        }
+        navigate('/owner/dashboard');
+      } else {
+        if (loginMode === 'admin') {
+          toast({
+            variant: 'destructive',
+            title: 'No admin access',
+            description: "This account doesn't have admin privileges. Logged in as a regular user.",
+          });
+        }
+        navigate('/');
+      }
+    }
+  }, [user, role, loading, navigate, view, loginMode, toast]);
 
   const validateForm = () => {
     try {
@@ -99,7 +98,7 @@ useEffect(() => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     if (view === 'login') {
@@ -111,7 +110,7 @@ useEffect(() => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!contactInfo) {
       toast({
         variant: "destructive",
@@ -123,7 +122,7 @@ useEffect(() => {
 
     // Check if it's an email or mobile number
     const isEmail = contactInfo.includes('@');
-    
+
     if (isEmail) {
       const emailSchema = z.string().email();
       if (!emailSchema.safeParse(contactInfo).success) {
@@ -165,83 +164,35 @@ useEffect(() => {
         return;
       }
 
-      try {
-        const { error } = await supabase.auth.signInWithOtp({ phone });
-        if (error) throw error;
-        setOtpPhone(phone);
-        setView('verify-otp');
-        toast({
-          title: "OTP sent",
-          description: `We sent a 6-digit code to ${phone}`,
-        });
-      } catch (err: any) {
-        toast({
-          variant: "destructive",
-          title: "Could not send OTP",
-          description: err?.message || "SMS is not enabled. Use email reset or enable SMS in the backend.",
-        });
-      }
+      // Phone OTP not supported without Supabase
+      toast({
+        variant: "destructive",
+        title: "Phone OTP not available",
+        description: "Please use email for password reset.",
+      });
     }
   };
 
   const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!otpPhone) {
-      toast({
-        variant: "destructive",
-        title: "Missing phone",
-        description: "Go back and enter your phone number",
-      });
-      return;
-    }
-
-    if (!otpCode || otpCode.trim().length < 4) {
-      toast({
-        variant: "destructive",
-        title: "Invalid code",
-        description: "Please enter the 6-digit code",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: otpPhone,
-        token: otpCode,
-        type: 'sms',
-      } as any);
-      if (error) throw error;
-
-      toast({ title: "Verified", description: "Please create your new password" });
-      setView('reset-password');
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Verification failed",
-        description: error?.message || "The code you entered is invalid",
-      });
-    }
+    toast({
+      variant: "destructive",
+      title: "Phone OTP not available",
+      description: "Please use email for password reset.",
+    });
   };
 
   const handleResendPhoneOtp = async () => {
-    if (!otpPhone) return;
-    try {
-      const { error } = await supabase.auth.signInWithOtp({ phone: otpPhone });
-      if (error) throw error;
-      toast({ title: "OTP resent", description: `A new code was sent to ${otpPhone}` });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Could not resend OTP",
-        description: error?.message || "Please wait a bit and try again",
-      });
-    }
+    toast({
+      variant: "destructive",
+      title: "Phone OTP not available",
+      description: "Please use email for password reset.",
+    });
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       toast({
         variant: "destructive",
@@ -260,28 +211,14 @@ useEffect(() => {
       return;
     }
 
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Password updated",
-        description: "Your password has been successfully reset",
-      });
-      
-      setNewPassword('');
-      setConfirmPassword('');
-      setView('login');
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to reset password",
-        description: error.message,
-      });
-    }
+    // Password reset via token needs backend API implementation
+    toast({
+      title: "Password reset",
+      description: "Password reset functionality requires backend implementation.",
+    });
+    setNewPassword('');
+    setConfirmPassword('');
+    setView('login');
   };
 
   // Welcome Screen
@@ -299,43 +236,43 @@ useEffect(() => {
 
           {/* Illustration */}
           <div className="flex-1 flex items-center justify-center">
-            <img 
-              src={welcomeIllustration} 
-              alt="Welcome to He&She PG" 
+            <img
+              src={welcomeIllustration}
+              alt="Welcome to He&She PG"
               className="w-full max-w-[280px] h-auto"
             />
           </div>
 
           {/* CTA and Links */}
           <div className="space-y-6 pb-4">
-            <Button 
+            <Button
               onClick={() => setView('signup')}
               className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl"
             >
               Get Started
             </Button>
-            
-<div className="flex items-center justify-center gap-8">
-  <button
-    onClick={() => setView('login')}
-    className="text-foreground hover:text-primary font-medium text-base"
-  >
-    Login
-  </button>
-  <button
-    onClick={() => setView('signup')}
-    className="text-foreground hover:text-primary font-medium text-base"
-  >
-    Sign Up
-  </button>
-  <button
-    onClick={() => { setLoginMode('admin'); setView('login'); }}
-    className="text-primary hover:underline font-medium text-base"
-    aria-label="Go to Admin Login"
-  >
-    Admin Portal
-  </button>
-</div>
+
+            <div className="flex items-center justify-center gap-8">
+              <button
+                onClick={() => setView('login')}
+                className="text-foreground hover:text-primary font-medium text-base"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => setView('signup')}
+                className="text-foreground hover:text-primary font-medium text-base"
+              >
+                Sign Up
+              </button>
+              <button
+                onClick={() => { setLoginMode('admin'); setView('login'); }}
+                className="text-primary hover:underline font-medium text-base"
+                aria-label="Go to Admin Login"
+              >
+                Admin Portal
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -348,40 +285,40 @@ useEffect(() => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-<div className="mb-8">
-  <h1 className="text-5xl font-bold mb-3">He&She</h1>
-  <p className="text-base text-muted-foreground">
-    {loginMode === 'admin' ? 'Admin Portal — authorized access only' : loginMode === 'owner' ? 'Owner Portal — manage your properties' : 'Welcome back! Please login to continue'}
-  </p>
-</div>
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              {loginMode === 'admin' ? 'Admin Portal — authorized access only' : loginMode === 'owner' ? 'Owner Portal — manage your properties' : 'Welcome back! Please login to continue'}
+            </p>
+          </div>
 
-{/* Mode Switch */}
-<div className="grid grid-cols-3 gap-2 mb-6">
-  <Button
-    type="button"
-    variant={loginMode === 'user' ? 'default' : 'outline'}
-    onClick={() => setLoginMode('user')}
-    className="h-10"
-  >
-    User Login
-  </Button>
-  <Button
-    type="button"
-    variant={loginMode === 'owner' ? 'default' : 'outline'}
-    onClick={() => setLoginMode('owner')}
-    className="h-10"
-  >
-    Owner Login
-  </Button>
-  <Button
-    type="button"
-    variant={loginMode === 'admin' ? 'default' : 'outline'}
-    onClick={() => setLoginMode('admin')}
-    className="h-10"
-  >
-    Admin Login
-  </Button>
-</div>
+          {/* Mode Switch */}
+          <div className="grid grid-cols-3 gap-2 mb-6">
+            <Button
+              type="button"
+              variant={loginMode === 'user' ? 'default' : 'outline'}
+              onClick={() => setLoginMode('user')}
+              className="h-10"
+            >
+              User Login
+            </Button>
+            <Button
+              type="button"
+              variant={loginMode === 'owner' ? 'default' : 'outline'}
+              onClick={() => setLoginMode('owner')}
+              className="h-10"
+            >
+              Owner Login
+            </Button>
+            <Button
+              type="button"
+              variant={loginMode === 'admin' ? 'default' : 'outline'}
+              onClick={() => setLoginMode('admin')}
+              className="h-10"
+            >
+              Admin Login
+            </Button>
+          </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4 flex-1">
@@ -394,7 +331,7 @@ useEffect(() => {
                 className="h-12 text-base"
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-              
+
               <Input
                 type="password"
                 value={password}
@@ -404,7 +341,7 @@ useEffect(() => {
               />
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
-            
+
             <div className="pt-6">
               <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
                 Login
@@ -475,7 +412,7 @@ useEffect(() => {
                 Use email for a reset link or phone (+country code) to receive an OTP.
               </p>
             </div>
-            
+
             <div className="pt-6">
               <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
                 Send Reset Link
@@ -567,7 +504,7 @@ useEffect(() => {
                 placeholder="New Password"
                 className="h-12 text-base"
               />
-              
+
               <Input
                 type="password"
                 value={confirmPassword}
@@ -576,7 +513,7 @@ useEffect(() => {
                 className="h-12 text-base"
               />
             </div>
-            
+
             <div className="pt-6">
               <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
                 Reset Password
@@ -621,7 +558,7 @@ useEffect(() => {
               className="h-12 text-base"
             />
             {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-            
+
             <Input
               type="email"
               value={email}
@@ -630,7 +567,7 @@ useEffect(() => {
               className="h-12 text-base"
             />
             {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-            
+
             <Input
               type="password"
               value={password}
@@ -639,7 +576,7 @@ useEffect(() => {
               className="h-12 text-base"
             />
             {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-            
+
             <div className="space-y-3 pt-2">
               <Label className="text-base">I want to</Label>
               <RadioGroup value={signupRole} onValueChange={(v) => setSignupRole(v as typeof signupRole)}>
@@ -658,7 +595,7 @@ useEffect(() => {
               </RadioGroup>
             </div>
           </div>
-          
+
           <div className="pt-6">
             <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
               Get Started

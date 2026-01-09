@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Gift, Copy, Check, Users, IndianRupee } from 'lucide-react';
+import { Gift, Copy, Check, Users, IndianRupee, Loader2 } from 'lucide-react';
 
 interface Referral {
   id: string;
@@ -26,59 +26,40 @@ const Referrals = () => {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [totalRewards, setTotalRewards] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [successfulReferrals, setSuccessfulReferrals] = useState(0);
+  const [pendingRewards, setPendingRewards] = useState(0);
 
   useEffect(() => {
     if (!user) {
       navigate('/auth');
       return;
     }
-    fetchOrCreateReferralCode();
-    fetchReferrals();
+    fetchReferralData();
   }, [user]);
 
-  const fetchOrCreateReferralCode = async () => {
-    if (!user) return;
+  const fetchReferralData = async () => {
+    try {
+      // Get or generate referral code
+      const codeData = await api.getReferralCode();
+      setMyReferralCode(codeData.code);
 
-    // Check if user already has a referral code
-    const { data: existing } = await supabase
-      .from('referrals')
-      .select('referral_code')
-      .eq('referrer_id', user.id)
-      .limit(1)
-      .single();
+      // Get stats
+      const stats = await api.getReferralStats();
+      setTotalRewards(stats.total_rewards_earned);
+      setSuccessfulReferrals(stats.successful_referrals);
+      setPendingRewards(stats.unclaimed_rewards);
 
-    if (existing) {
-      setMyReferralCode(existing.referral_code);
-    } else {
-      // Create a new referral code
-      const code = `REF${user.id.substring(0, 8).toUpperCase()}`;
-      const { data, error } = await supabase
-        .from('referrals')
-        .insert({ referrer_id: user.id, referral_code: code })
-        .select('referral_code')
-        .single();
-
-      if (!error && data) {
-        setMyReferralCode(data.referral_code);
-      }
-    }
-  };
-
-  const fetchReferrals = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('referrals')
-      .select('*')
-      .eq('referrer_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setReferrals(data);
-      const total = data.reduce((sum, ref) => 
-        sum + (ref.reward_claimed ? ref.reward_amount : 0), 0
-      );
-      setTotalRewards(total);
+      // Get referral list
+      const referralList = await api.getMyReferrals();
+      setReferrals(referralList);
+    } catch (error: any) {
+      console.error('Error fetching referral data:', error);
+      // Fallback to generated code
+      const code = `REF${user!.id.substring(0, 8).toUpperCase()}`;
+      setMyReferralCode(code);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,8 +74,22 @@ const Referrals = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const successfulReferrals = referrals.filter(r => r.referee_id !== null).length;
-  const pendingRewards = referrals.filter(r => !r.reward_claimed && r.referee_id).length;
+  const claimRewards = async () => {
+    try {
+      const result = await api.claimReferralRewards();
+      toast({
+        title: 'Rewards Claimed!',
+        description: result.message,
+      });
+      fetchReferralData();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'Failed to claim rewards',
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,7 +167,7 @@ const Referrals = () => {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Share this link with your friends. When they sign up and book their first PG, 
+                  Share this link with your friends. When they sign up and book their first PG,
                   you'll earn ₹500!
                 </p>
               </div>

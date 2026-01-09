@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api, Property } from "@/lib/api";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ const amenityIcons: Record<string, any> = {
 
 const FeaturedPGs = () => {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState<any[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,15 +24,8 @@ const FeaturedPGs = () => {
 
   const fetchFeaturedProperties = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(4);
-      
-      if (error) throw error;
-      setProperties(data || []);
+      const data = await api.getProperties({ sort_by: 'newest' });
+      setProperties(data.slice(0, 4));
     } catch (error) {
       console.error('Error fetching properties:', error);
     } finally {
@@ -68,15 +61,15 @@ const FeaturedPGs = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {properties.map((property) => (
-            <Card 
-              key={property.id} 
+            <Card
+              key={property.id}
               className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
               onClick={() => navigate(`/properties/${property.id}`)}
             >
               <div className="relative h-48 overflow-hidden">
                 {property.photos && property.photos.length > 0 ? (
-                  <img 
-                    src={property.photos[0]} 
+                  <img
+                    src={property.photos[0]}
                     alt={property.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   />
@@ -86,8 +79,8 @@ const FeaturedPGs = () => {
                   </div>
                 )}
                 <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
-                  {property.gender_preference === 'male' ? 'Boys' : 
-                   property.gender_preference === 'female' ? 'Girls' : 'Unisex'}
+                  {property.gender_preference === 'male' ? 'Boys' :
+                    property.gender_preference === 'female' ? 'Girls' : 'Unisex'}
                 </Badge>
                 {property.instant_booking && (
                   <Badge className="absolute top-3 left-3 bg-green-600">
@@ -102,10 +95,10 @@ const FeaturedPGs = () => {
                   </Badge>
                 )}
               </div>
-              
+
               <CardContent className="p-4">
                 <h3 className="font-semibold text-lg mb-2 line-clamp-1">{property.title}</h3>
-                
+
                 <div className="flex items-center text-sm text-muted-foreground mb-3">
                   <MapPin className="h-4 w-4 mr-1" />
                   <span className="line-clamp-1">{property.locality}, {property.city}</span>
@@ -121,8 +114,8 @@ const FeaturedPGs = () => {
                   {property.amenities?.slice(0, 3).map((amenity: string) => {
                     const Icon = amenityIcons[amenity];
                     return (
-                      <div 
-                        key={amenity} 
+                      <div
+                        key={amenity}
                         className="flex items-center gap-1 text-xs bg-secondary px-2 py-1 rounded-full"
                       >
                         {Icon && <Icon className="h-3 w-3" />}
@@ -152,9 +145,9 @@ const FeaturedPGs = () => {
         </div>
 
         <div className="text-center mt-12">
-          <Button 
-            size="lg" 
-            variant="outline" 
+          <Button
+            size="lg"
+            variant="outline"
             className="px-8"
             onClick={() => navigate('/search')}
           >

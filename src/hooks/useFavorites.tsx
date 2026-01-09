@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api, Favorite } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 export const useFavorites = (userId: string | undefined) => {
@@ -18,14 +18,8 @@ export const useFavorites = (userId: string | undefined) => {
 
   const fetchFavorites = async () => {
     try {
-      const { data, error } = await supabase
-        .from('favorites')
-        .select('property_id')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      
-      setFavorites(new Set(data?.map(f => f.property_id) || []));
+      const data = await api.getFavorites();
+      setFavorites(new Set(data.map(f => f.property_id)));
     } catch (error: any) {
       console.error('Error fetching favorites:', error);
     } finally {
@@ -47,13 +41,7 @@ export const useFavorites = (userId: string | undefined) => {
 
     try {
       if (isFavorite) {
-        const { error } = await supabase
-          .from('favorites')
-          .delete()
-          .eq('user_id', userId)
-          .eq('property_id', propertyId);
-
-        if (error) throw error;
+        await api.removeFavorite(propertyId);
 
         setFavorites(prev => {
           const newSet = new Set(prev);
@@ -66,11 +54,7 @@ export const useFavorites = (userId: string | undefined) => {
           description: 'Property removed from your wishlist',
         });
       } else {
-        const { error } = await supabase
-          .from('favorites')
-          .insert({ user_id: userId, property_id: propertyId });
-
-        if (error) throw error;
+        await api.addFavorite(propertyId);
 
         setFavorites(prev => new Set(prev).add(propertyId));
 

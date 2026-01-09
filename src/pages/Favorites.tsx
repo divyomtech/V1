@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api, Property } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useFavorites } from '@/hooks/useFavorites';
 import Header from '@/components/Header';
@@ -9,18 +9,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MapPin, IndianRupee, Camera, Wifi, Utensils } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Property {
-  id: string;
-  title: string;
-  city: string;
-  locality: string;
-  monthly_rent: number;
-  gender_preference: string;
-  amenities: string[];
-  photos: string[];
-  deposit: number;
-}
 
 const Favorites = () => {
   const navigate = useNavigate();
@@ -46,14 +34,10 @@ const Favorites = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .in('id', Array.from(favorites))
-        .eq('status', 'active');
-
-      if (error) throw error;
-      setProperties(data || []);
+      // Fetch all properties and filter by favorites
+      const allProperties = await api.getProperties();
+      const favoriteProperties = allProperties.filter(p => favorites.has(p.id));
+      setProperties(favoriteProperties);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -112,8 +96,8 @@ const Favorites = () => {
                       {property.gender_preference === 'male'
                         ? 'Boys'
                         : property.gender_preference === 'female'
-                        ? 'Girls'
-                        : 'Co-living'}
+                          ? 'Girls'
+                          : 'Co-living'}
                     </Badge>
                     <Button
                       size="icon"

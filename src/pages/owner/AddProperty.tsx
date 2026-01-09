@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -105,25 +105,21 @@ const AddProperty = () => {
       // Validate all inputs
       const validatedData = propertySchema.parse(dataToValidate);
 
-      // Insert validated data
-      const { error } = await supabase.from('properties').insert({
-        owner_id: user?.id,
+      // Insert validated data via API
+      await api.createProperty({
         title: validatedData.title,
-        description: validatedData.description || null,
+        description: validatedData.description || undefined,
         address: validatedData.address,
         city: validatedData.city,
         locality: validatedData.locality,
         monthly_rent: validatedData.monthly_rent,
         deposit: validatedData.deposit,
-        gender_preference: validatedData.gender_preference,
+        gender_preference: validatedData.gender_preference as 'male' | 'female' | 'mixed',
         available_from: validatedData.available_from,
-        rules: validatedData.rules || null,
         amenities: validatedData.amenities,
         photos: validatedData.photos,
         status: 'active',
-      } as any);
-
-      if (error) throw error;
+      });
 
       toast({
         title: 'Success',
@@ -239,38 +235,38 @@ const AddProperty = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="rent">Monthly Rent (₹) *</Label>
-                  <Input
-                    id="rent"
-                    type="number"
-                    required
-                    min="1000"
-                    max="1000000"
-                    value={formData.monthly_rent}
-                    onChange={(e) => handleChange('monthly_rent', e.target.value)}
-                    placeholder="10000"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Between ₹1,000 and ₹10,00,000
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="deposit">Security Deposit (₹) *</Label>
-                  <Input
-                    id="deposit"
-                    type="number"
-                    required
-                    min="0"
-                    max="5000000"
-                    value={formData.deposit}
-                    onChange={(e) => handleChange('deposit', e.target.value)}
-                    placeholder="10000"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Maximum ₹50,00,000
-                  </p>
-                </div>
+                  <div>
+                    <Label htmlFor="rent">Monthly Rent (₹) *</Label>
+                    <Input
+                      id="rent"
+                      type="number"
+                      required
+                      min="1000"
+                      max="1000000"
+                      value={formData.monthly_rent}
+                      onChange={(e) => handleChange('monthly_rent', e.target.value)}
+                      placeholder="10000"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Between ₹1,000 and ₹10,00,000
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="deposit">Security Deposit (₹) *</Label>
+                    <Input
+                      id="deposit"
+                      type="number"
+                      required
+                      min="0"
+                      max="5000000"
+                      value={formData.deposit}
+                      onChange={(e) => handleChange('deposit', e.target.value)}
+                      placeholder="10000"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Maximum ₹50,00,000
+                    </p>
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">

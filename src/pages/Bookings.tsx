@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -16,13 +16,13 @@ interface Booking {
   start_date: string;
   amount: number;
   created_at: string;
-  properties: {
+  property?: {
     title: string;
     city: string;
-    locality: string;
-    photos: string[];
+    locality?: string;
+    photos?: string[];
   };
-  rooms?: {
+  room?: {
     room_type: string;
     bed_count: number;
   };
@@ -43,17 +43,7 @@ const Bookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          properties (title, city, locality, photos),
-          rooms (room_type, bed_count)
-        `)
-        .eq('customer_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await api.getBookings();
       setBookings(data || []);
     } catch (error: any) {
       toast({
@@ -130,10 +120,10 @@ const Bookings = () => {
                         <CardContent className="p-0">
                           <div className="flex flex-col md:flex-row">
                             <div className="md:w-48 h-48 md:h-auto relative">
-                              {booking.properties.photos && booking.properties.photos[0] ? (
+                              {booking.property.photos && booking.property.photos[0] ? (
                                 <img
-                                  src={booking.properties.photos[0]}
-                                  alt={booking.properties.title}
+                                  src={booking.property.photos[0]}
+                                  alt={booking.property.title}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -145,14 +135,14 @@ const Bookings = () => {
                             <div className="flex-1 p-6">
                               <div className="flex items-start justify-between mb-4">
                                 <div>
-                                  <h3 className="text-xl font-semibold mb-2">{booking.properties.title}</h3>
+                                  <h3 className="text-xl font-semibold mb-2">{booking.property.title}</h3>
                                   <div className="flex items-center text-muted-foreground mb-2">
                                     <MapPin className="h-4 w-4 mr-1" />
-                                    {booking.properties.locality}, {booking.properties.city}
+                                    {booking.property.locality}, {booking.property.city}
                                   </div>
-                                  {booking.rooms && (
+                                  {booking.room && (
                                     <p className="text-sm text-muted-foreground">
-                                      {booking.rooms.room_type} • {booking.rooms.bed_count} beds
+                                      {booking.room.room_type} • {booking.room.bed_count} beds
                                     </p>
                                   )}
                                 </div>
@@ -192,16 +182,10 @@ const Bookings = () => {
                                     size="sm"
                                     onClick={async () => {
                                       try {
-                                        const { error } = await supabase
-                                          .from('bookings')
-                                          .update({ status: 'cancelled' })
-                                          .eq('id', booking.id);
-
-                                        if (error) throw error;
-
+                                        // TODO: Add api.cancelBooking(booking.id) when endpoint is ready
                                         toast({
-                                          title: 'Success',
-                                          description: 'Booking cancelled',
+                                          title: 'Info',
+                                          description: 'Booking cancellation will be available soon',
                                         });
 
                                         fetchBookings();

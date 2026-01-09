@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,49 +62,48 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
+      // Try to get profile from API
+      const data = await api.getProfile();
       if (data) {
-        const profileData: any = data;
         setProfile({
-          name: profileData.name || "",
-          full_name: profileData.full_name || "",
-          display_name: profileData.display_name || "",
-          business_name: profileData.business_name || "",
-          phone: profileData.phone || "",
-          phone_verified: profileData.phone_verified || false,
-          city: profileData.city || "",
-          address: profileData.address || "",
-          current_address: profileData.current_address || "",
-          permanent_address: profileData.permanent_address || "",
-          profile_photo: profileData.profile_photo || "",
-          avatar_url: profileData.avatar_url || "",
-          gender: profileData.gender || "",
-          date_of_birth: profileData.date_of_birth || "",
-          aadhar_front_url: profileData.aadhar_front_url || "",
-          aadhar_back_url: profileData.aadhar_back_url || "",
-          college_company_id_url: profileData.college_company_id_url || "",
-          pan_card_url: profileData.pan_card_url || "",
-          gst_doc_url: profileData.gst_doc_url || "",
-          profile_verification_status: profileData.profile_verification_status || "pending",
-          about: profileData.about || "",
-          emergency_contact_name: profileData.emergency_contact_name || "",
-          emergency_contact_phone: profileData.emergency_contact_phone || "",
-          emergency_contact_address: profileData.emergency_contact_address || "",
-          work_type: profileData.work_type || "",
-          work_place: profileData.work_place || "",
-          languages_known: profileData.languages_known || [],
-          mother_tongue: profileData.mother_tongue || ""
+          name: data.name || "",
+          full_name: data.full_name || "",
+          display_name: data.display_name || "",
+          business_name: data.business_name || "",
+          phone: data.phone || "",
+          phone_verified: data.phone_verified || false,
+          city: data.city || "",
+          address: data.address || "",
+          current_address: data.current_address || "",
+          permanent_address: data.permanent_address || "",
+          profile_photo: data.profile_photo || "",
+          avatar_url: data.avatar_url || "",
+          gender: data.gender || "",
+          date_of_birth: data.date_of_birth || "",
+          aadhar_front_url: data.aadhar_front_url || "",
+          aadhar_back_url: data.aadhar_back_url || "",
+          college_company_id_url: data.college_company_id_url || "",
+          pan_card_url: data.pan_card_url || "",
+          gst_doc_url: data.gst_doc_url || "",
+          profile_verification_status: data.profile_verification_status || "pending",
+          about: data.about || "",
+          emergency_contact_name: data.emergency_contact_name || "",
+          emergency_contact_phone: data.emergency_contact_phone || "",
+          emergency_contact_address: data.emergency_contact_address || "",
+          work_type: data.work_type || "",
+          work_place: data.work_place || "",
+          languages_known: data.languages_known || [],
+          mother_tongue: data.mother_tongue || ""
         });
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      // Set defaults from user data
+      setProfile((prev: any) => ({
+        ...prev,
+        name: user?.name || "",
+        full_name: user?.name || ""
+      }));
     } finally {
       setLoading(false);
     }
@@ -113,33 +112,12 @@ const Profile = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user?.id,
-          name: profile.name || profile.full_name,
-          full_name: profile.full_name || profile.name,
-          display_name: profile.display_name,
-          business_name: profile.business_name,
-          phone: profile.phone,
-          city: profile.city,
-          address: profile.address,
-          current_address: profile.current_address,
-          permanent_address: profile.permanent_address,
-          gender: profile.gender,
-          date_of_birth: profile.date_of_birth,
-          about: profile.about,
-          emergency_contact_name: profile.emergency_contact_name,
-          emergency_contact_phone: profile.emergency_contact_phone,
-          emergency_contact_address: profile.emergency_contact_address,
-          work_type: profile.work_type,
-          work_place: profile.work_place,
-          languages_known: profile.languages_known,
-          mother_tongue: profile.mother_tongue,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
+      await api.updateProfile({
+        name: profile.name || profile.full_name,
+        phone: profile.phone,
+        city: profile.city,
+        address: profile.address || profile.current_address,
+      });
 
       toast({
         title: "Profile updated",

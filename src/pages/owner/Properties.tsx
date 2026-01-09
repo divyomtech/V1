@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api, Property } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -8,17 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, MapPin, IndianRupee, Home } from 'lucide-react';
-
-interface Property {
-  id: string;
-  title: string;
-  city: string;
-  locality: string;
-  monthly_rent: number;
-  status: string;
-  gender_preference: string;
-  photos: string[];
-}
 
 const OwnerProperties = () => {
   const navigate = useNavigate();
@@ -35,14 +24,11 @@ const OwnerProperties = () => {
 
   const fetchProperties = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('owner_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProperties(data || []);
+      // API returns all properties, owner filtering done on backend
+      const data = await api.getProperties();
+      // Filter by owner on frontend for now
+      const ownedProperties = data.filter(p => p.owner_id === user?.id);
+      setProperties(ownedProperties);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -128,8 +114,8 @@ const OwnerProperties = () => {
                         {property.monthly_rent.toLocaleString()}/mo
                       </div>
                       <Badge variant="outline">
-                        {property.gender_preference === 'male' ? 'Boys' : 
-                         property.gender_preference === 'female' ? 'Girls' : 'Co-living'}
+                        {property.gender_preference === 'male' ? 'Boys' :
+                          property.gender_preference === 'female' ? 'Girls' : 'Co-living'}
                       </Badge>
                     </div>
                     <div className="flex gap-2">

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +34,8 @@ interface RoommateProfile {
   preferred_locations: string[];
   bio: string;
   looking_for_roommate: boolean;
-  profiles: {
+  matchScore?: number;
+  profiles?: {
     name: string;
     profile_photo: string | null;
     city: string | null;
@@ -78,91 +79,98 @@ const RoommateMatch = () => {
       navigate('/auth');
       return;
     }
-    fetchMyProfile();
-    fetchMatches();
+    fetchProfileAndMatches();
   }, [user]);
 
-  const fetchMyProfile = async () => {
+  const fetchProfileAndMatches = async () => {
     try {
-      const { data, error } = await supabase
-        .from('roommate_preferences')
-        .select(`*, profiles(name, profile_photo, city)`)
-        .eq('user_id', user!.id)
-        .single();
+      // Try to get existing profile
+      const profile = await api.getRoommateProfile();
+      setMyProfile(profile);
+      setFormData({
+        age_range: profile.age?.toString() || '',
+        occupation: profile.occupation || '',
+        lifestyle: profile.preferences || [],
+        interests: profile.hobbies || [],
+        dietary_preference: '',
+        smoking: profile.preferences?.includes('smoker') || false,
+        drinking: false,
+        pets: profile.preferences?.includes('pet_friendly') || false,
+        cleanliness_level: 3,
+        budget_min: profile.budget_min || 5000,
+        budget_max: profile.budget_max || 20000,
+        preferred_gender: profile.gender || 'any',
+        preferred_locations: profile.preferred_location ? [profile.preferred_location] : [],
+        bio: profile.bio || '',
+        looking_for_roommate: profile.is_active || false,
+      });
 
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setMyProfile(data as any);
-        setFormData({
-          age_range: data.age_range || '',
-          occupation: data.occupation || '',
-          lifestyle: data.lifestyle || [],
-          interests: data.interests || [],
-          dietary_preference: data.dietary_preference || '',
-          smoking: data.smoking,
-          drinking: data.drinking,
-          pets: data.pets,
-          cleanliness_level: data.cleanliness_level || 3,
-          budget_min: data.budget_min || 5000,
-          budget_max: data.budget_max || 20000,
-          preferred_gender: data.preferred_gender || 'any',
-          preferred_locations: data.preferred_locations || [],
-          bio: data.bio || '',
-          looking_for_roommate: data.looking_for_roommate,
-        });
-      } else {
-        setEditing(true);
-      }
-    } catch (error: any) {
-      console.error('Error fetching profile:', error);
+      // Fetch matches
+      const matchResults = await api.getRoommateMatches();
+      setMatches(matchResults.map((m: any) => ({
+        id: m.id,
+        user_id: m.matched_user_id,
+        matchScore: m.match_score,
+        bio: m.bio,
+        profiles: {
+          name: m.user_name,
+          profile_photo: m.user_photo,
+          city: null,
+        },
+        occupation: m.occupation,
+        lifestyle: m.preferences || [],
+        interests: m.preferences || [],
+        age_range: m.age?.toString() || '',
+        dietary_preference: '',
+        smoking: false,
+        drinking: false,
+        pets: false,
+        cleanliness_level: 3,
+        budget_min: 0,
+        budget_max: 0,
+        preferred_gender: '',
+        preferred_locations: [],
+        looking_for_roommate: true,
+      })) as RoommateProfile[]);
+      setEditing(false);
+    } catch (error) {
+      // No profile exists, show create form
+      setEditing(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMatches = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('roommate_preferences')
-        .select(`*, profiles(name, profile_photo, city)`)
-        .eq('looking_for_roommate', true)
-        .neq('user_id', user!.id)
-        .limit(20);
-
-      if (error) throw error;
-      setMatches(data as any || []);
-    } catch (error: any) {
-      console.error('Error fetching matches:', error);
-    }
-  };
-
   const saveProfile = async () => {
     try {
-      const { error } = await supabase
-        .from('roommate_preferences')
-        .upsert({
-          user_id: user!.id,
-          ...formData,
-        });
+      const profileData = {
+        age: formData.age_range ? parseInt(formData.age_range) : undefined,
+        occupation: formData.occupation,
+        preferences: [...formData.lifestyle, formData.smoking ? 'smoker' : 'non_smoker', formData.pets ? 'pet_friendly' : ''].filter(Boolean),
+        hobbies: formData.interests,
+        budget_min: formData.budget_min,
+        budget_max: formData.budget_max,
+        preferred_city: formData.preferred_locations[0],
+        bio: formData.bio,
+        gender: formData.preferred_gender,
+      };
 
-      if (error) throw error;
+      const savedProfile = await api.createOrUpdateRoommateProfile(profileData);
+      setMyProfile(savedProfile);
+      setEditing(false);
 
       toast({
-        title: 'Success',
-        description: 'Profile saved successfully',
+        title: 'Profile Saved',
+        description: 'Your roommate preferences have been saved!',
       });
 
-      setEditing(false);
-      fetchMyProfile();
-      if (formData.looking_for_roommate) {
-        fetchMatches();
-      }
+      // Refresh matches
+      fetchProfileAndMatches();
     } catch (error: any) {
       toast({
+        variant: "destructive",
         title: 'Error',
-        description: error.message,
-        variant: 'destructive',
+        description: error.message || 'Failed to save profile',
       });
     }
   };
@@ -194,14 +202,14 @@ const RoommateMatch = () => {
 
     // Budget overlap
     const budgetOverlap =
-      Math.min(profile.budget_max, myProfile.budget_max) - 
+      Math.min(profile.budget_max, myProfile.budget_max) -
       Math.max(profile.budget_min, myProfile.budget_min);
     if (budgetOverlap > 0) {
       score += weights.budget * 10;
     }
 
     // Location match
-    const commonLocations = profile.preferred_locations?.filter(l => 
+    const commonLocations = profile.preferred_locations?.filter(l =>
       myProfile.preferred_locations?.includes(l)
     ).length || 0;
     if (commonLocations > 0) score += weights.location * 10;
@@ -211,7 +219,7 @@ const RoommateMatch = () => {
 
   const sortedMatches = matches
     .map(m => ({ ...m, matchScore: calculateMatchScore(m) }))
-    .sort((a, b) => b.matchScore - a.matchScore);
+    .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
 
   if (loading) {
     return (

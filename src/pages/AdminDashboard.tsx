@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,7 @@ interface OwnerApplication {
   property_documents: string[] | null;
   admin_notes: string | null;
   created_at: string;
-  profiles: {
+  profiles?: {
     name: string;
     email?: string;
     phone?: string;
@@ -54,128 +54,71 @@ const AdminDashboard = () => {
       navigate('/');
       return;
     }
-    fetchApplications();
-    fetchStats();
-    fetchUsers();
-    fetchAuditLogs();
+    fetchData();
   }, [role, navigate]);
 
-  const fetchApplications = async () => {
+  const fetchData = async () => {
     try {
-      const { data: ownersData, error } = await supabase
-        .from('owners_profile')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch admin stats
+      const adminStats = await api.getAdminStats();
 
-      if (error) throw error;
+      // Fetch owner applications
+      const apps = await api.getOwnerApplications();
 
-      // Fetch profile data separately for each owner
-      const applicationsWithProfiles = await Promise.all(
-        (ownersData || []).map(async (owner) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('name, phone')
-            .eq('id', owner.user_id)
-            .single();
+      // Calculate stats from applications
+      const pendingCount = apps.filter((a: any) => a.approval_status === 'pending').length;
+      const approvedCount = apps.filter((a: any) => a.approval_status === 'approved').length;
+      const rejectedCount = apps.filter((a: any) => a.approval_status === 'rejected').length;
 
-          return {
-            ...owner,
-            profiles: profile || { name: 'Unknown', phone: 'N/A' }
-          };
-        })
-      );
+      setStats({
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        totalProperties: adminStats.total_properties,
+      });
 
-      setApplications(applicationsWithProfiles as any);
+      setApplications(apps.map((a: any) => ({
+        ...a,
+        profiles: {
+          name: a.user_name,
+          email: a.user_email,
+          phone: a.user_phone,
+        }
+      })));
+
+      // Fetch audit logs for Recent Activity
+      try {
+        const logs = await api.getAuditLogs(10);
+        setAuditLogs(logs);
+      } catch (e) {
+        console.log('Audit logs not available');
+      }
+
+      // Fetch all users for User Management
+      try {
+        const usersData = await api.getAllUsers();
+        setUsers(usersData.map((u: any) => ({
+          id: u.id,
+          email: u.email,
+          name: u.name || 'Unknown',
+          phone: u.phone,
+          role: u.role || 'customer',
+          created_at: u.created_at,
+        })));
+      } catch (e) {
+        console.log('Users list not available');
+      }
+
     } catch (error: any) {
+      console.error('Error fetching data:', error);
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load admin data. Please check if the backend is running.",
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const [ownersRes, propertiesRes] = await Promise.all([
-        supabase.from('owners_profile').select('approval_status'),
-        supabase.from('properties').select('id'),
-      ]);
-
-      const pending = ownersRes.data?.filter(o => o.approval_status === 'pending').length || 0;
-      const approved = ownersRes.data?.filter(o => o.approval_status === 'approved').length || 0;
-      const rejected = ownersRes.data?.filter(o => o.approval_status === 'rejected').length || 0;
-
-      setStats({
-        pending,
-        approved,
-        rejected,
-        totalProperties: propertiesRes.data?.length || 0,
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
-  const fetchUsers = async () => {
-    setUsersLoading(true);
-    try {
-      // Fetch all profiles with email
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, phone, email, created_at')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) throw profilesError;
-
-      // Fetch user roles
-      const usersWithRoles = await Promise.all(
-        (profilesData || []).map(async (profile) => {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', profile.id)
-            .single();
-
-          return {
-            id: profile.id,
-            name: profile.name || 'Unknown',
-            phone: profile.phone || 'N/A',
-            email: profile.email || 'N/A',
-            role: (roleData?.role || 'customer') as 'customer' | 'owner' | 'admin',
-            created_at: profile.created_at || new Date().toISOString(),
-          };
-        })
-      );
-
-      setUsers(usersWithRoles);
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error fetching users',
-        description: error.message,
-      });
-    } finally {
       setUsersLoading(false);
-    }
-  };
-
-  const fetchAuditLogs = async () => {
-    setLogsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*, profiles(name)')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      setAuditLogs(data || []);
-    } catch (error: any) {
-      console.error('Error fetching audit logs:', error);
-    } finally {
       setLogsLoading(false);
     }
   };
@@ -186,7 +129,6 @@ const AdminDashboard = () => {
   };
 
   const handleRoleChange = async (userId: string, newRole: 'customer' | 'owner' | 'admin') => {
-    // Prevent admins from changing their own role
     if (userId === user?.id) {
       toast({
         variant: 'destructive',
@@ -199,7 +141,6 @@ const AdminDashboard = () => {
     const targetUser = users.find(u => u.id === userId);
     if (!targetUser) return;
 
-    // Show confirmation dialog
     setRoleChangeDialog({
       open: true,
       userId,
@@ -211,68 +152,45 @@ const AdminDashboard = () => {
   const confirmRoleChange = async () => {
     if (!roleChangeDialog) return;
 
-    const { userId, newRole, userName } = roleChangeDialog;
-
     try {
-      // Delete existing role
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      // Insert new role
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: newRole });
-
-      if (error) throw error;
-
-      // Insert audit log
-      await supabase.from('audit_logs').insert({
-        user_id: user!.id,
-        action: 'role_change',
-        details: `Changed ${userName}'s role to ${newRole}`,
-        ip_address: 'system',
-      });
-
+      await api.updateUserRole(roleChangeDialog.userId, roleChangeDialog.newRole);
       toast({
-        title: 'Role updated',
-        description: `${userName}'s role has been changed to ${newRole}.`,
+        title: 'Success',
+        description: `Role updated to ${roleChangeDialog.newRole} for ${roleChangeDialog.userName}`,
       });
-
-      fetchUsers();
+      // Refresh users list
+      const usersData = await api.getAllUsers();
+      setUsers(usersData);
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to update role',
       });
-    } finally {
-      setRoleChangeDialog(null);
     }
+    setRoleChangeDialog(null);
   };
 
   const handleApproval = async (applicationId: string, status: 'approved' | 'rejected') => {
     try {
-      const { error } = await supabase
-        .from('owners_profile')
-        .update({ approval_status: status })
-        .eq('id', applicationId);
-
-      if (error) throw error;
+      if (status === 'approved') {
+        await api.approveOwnerApplication(applicationId);
+      } else {
+        await api.rejectOwnerApplication(applicationId);
+      }
 
       toast({
-        title: status === 'approved' ? 'Owner Approved' : 'Owner Rejected',
-        description: `The owner application has been ${status}.`,
+        title: 'Success',
+        description: `Application ${status} successfully`,
       });
 
-      fetchApplications();
-      fetchStats();
+      // Refresh data
+      fetchData();
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to update application',
       });
     }
   };
@@ -302,8 +220,17 @@ const AdminDashboard = () => {
             <p className="text-muted-foreground mt-2">Manage owner applications and platform settings</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/')}>
-              Back to Home
+            <Button variant="outline" onClick={() => navigate('/admin/bookings')}>
+              Bookings
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/properties')}>
+              Properties
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/settings')}>
+              Settings
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
+              Analytics
             </Button>
             <Button variant="destructive" onClick={handleLogout}>
               Logout
@@ -488,9 +415,9 @@ const AdminDashboard = () => {
                               <p>Phone: {app.profiles?.phone || 'N/A'}</p>
                               <p>Applied: {new Date(app.created_at).toLocaleDateString()}</p>
                               {app.id_proof_url && (
-                                <a 
-                                  href={app.id_proof_url} 
-                                  target="_blank" 
+                                <a
+                                  href={app.id_proof_url}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-primary hover:underline flex items-center gap-1"
                                 >

@@ -8,7 +8,6 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,58 +29,15 @@ export const NotificationBell = () => {
 
   useEffect(() => {
     if (user) {
-      fetchNotifications();
-      subscribeToNotifications();
+      // Notifications API not implemented yet - placeholder
+      setNotifications([]);
+      setUnreadCount(0);
     }
   }, [user]);
 
-  const fetchNotifications = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    if (!error && data) {
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.read).length);
-    }
-  };
-
-  const subscribeToNotifications = () => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
-  const markAsRead = async (id: string) => {
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', id);
-
-    setNotifications(notifications.map(n => 
+  const markAsRead = (id: string) => {
+    // Mark as read locally
+    setNotifications(notifications.map(n =>
       n.id === id ? { ...n, read: true } : n
     ));
     setUnreadCount(Math.max(0, unreadCount - 1));
@@ -125,9 +81,8 @@ export const NotificationBell = () => {
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      notification.read ? 'bg-muted/50' : 'bg-accent'
-                    } hover:bg-accent`}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${notification.read ? 'bg-muted/50' : 'bg-accent'
+                      } hover:bg-accent`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 space-y-1">

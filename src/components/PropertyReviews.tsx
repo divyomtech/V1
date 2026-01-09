@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -22,10 +22,8 @@ interface Review {
   food_rating: number | null;
   safety_rating: number | null;
   created_at: string;
-  profiles: {
-    name: string;
-    profile_photo: string | null;
-  };
+  user_name?: string;
+  user_photo?: string;
 }
 
 interface PropertyReviewsProps {
@@ -47,36 +45,8 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
 
   const fetchReviews = async () => {
     try {
-      const { data: reviewsData, error: reviewsError } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('property_id', propertyId)
-        .order('created_at', { ascending: false });
-
-      if (reviewsError) throw reviewsError;
-
-      // Fetch profile data separately
-      const userIds = reviewsData?.map(r => r.user_id) || [];
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, profile_photo')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Merge the data
-      const reviewsWithProfiles = reviewsData?.map(review => {
-        const profile = profilesData?.find(p => p.id === review.user_id);
-        return {
-          ...review,
-          profiles: {
-            name: profile?.name || 'Anonymous',
-            profile_photo: profile?.profile_photo || null,
-          },
-        };
-      }) || [];
-
-      setReviews(reviewsWithProfiles as Review[]);
+      const data = await api.getPropertyReviews(propertyId);
+      setReviews(data || []);
     } catch (error: any) {
       console.error('Error fetching reviews:', error);
     } finally {
@@ -95,11 +65,11 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
     }
 
     // Validate review data
-    const validation = reviewSchema.safeParse({ 
-      rating, 
-      comment: comment || undefined 
+    const validation = reviewSchema.safeParse({
+      rating,
+      comment: comment || undefined
     });
-    
+
     if (!validation.success) {
       toast({
         title: 'Invalid Review',
@@ -112,14 +82,11 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('reviews').upsert({
+      await api.createReview({
         property_id: propertyId,
-        user_id: user.id,
         rating: validation.data.rating,
-        comment: validation.data.comment || null,
+        comment: validation.data.comment,
       });
-
-      if (error) throw error;
 
       toast({
         title: 'Review Submitted',
@@ -160,11 +127,10 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
-                    className={`h-5 w-5 ${
-                      star <= Math.round(parseFloat(averageRating))
+                    className={`h-5 w-5 ${star <= Math.round(parseFloat(averageRating))
                         ? 'fill-yellow-400 text-yellow-400'
                         : 'text-gray-300'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
@@ -187,11 +153,10 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                         className="focus:outline-none"
                       >
                         <Star
-                          className={`h-8 w-8 cursor-pointer ${
-                            star <= rating
+                          className={`h-8 w-8 cursor-pointer ${star <= rating
                               ? 'fill-yellow-400 text-yellow-400'
                               : 'text-gray-300'
-                          }`}
+                            }`}
                         />
                       </button>
                     ))}
@@ -246,11 +211,10 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          className={`h-4 w-4 ${
-                            star <= review.rating
+                          className={`h-4 w-4 ${star <= review.rating
                               ? 'fill-yellow-400 text-yellow-400'
                               : 'text-gray-300'
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -60,7 +60,9 @@ export const ChatDialog = ({
   useEffect(() => {
     if (conversationId) {
       fetchMessages();
-      subscribeToMessages();
+      // Poll for new messages every 5 seconds (replaces real-time subscription)
+      const interval = setInterval(fetchMessages, 5000);
+      return () => clearInterval(interval);
     }
   }, [conversationId]);
 
@@ -70,89 +72,39 @@ export const ChatDialog = ({
 
   const initializeConversation = async () => {
     try {
-      // Check if conversation exists
-      let { data: existing } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('property_id', propertyId)
-        .eq('customer_id', user!.id)
-        .single();
+      // Try to get existing conversations
+      const conversations = await api.getConversations();
+      const existing = conversations.find(
+        (c: any) => c.property_id === propertyId && c.customer_id === user!.id
+      );
 
-      if (!existing) {
-        // Create new conversation
-        const { data: newConv, error } = await supabase
-          .from('conversations')
-          .insert({
-            property_id: propertyId,
-            customer_id: user!.id,
-            owner_id: ownerId,
-          })
-          .select('id')
-          .single();
-
-        if (error) throw error;
-        existing = newConv;
+      if (existing) {
+        setConversationId(existing.id);
+      } else {
+        // Send a message to create conversation
+        setConversationId('new');
       }
-
-      setConversationId(existing.id);
     } catch (error: any) {
       console.error('Error initializing conversation:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not start conversation',
-        variant: 'destructive',
-      });
+      // Just allow sending a new message to start conversation
+      setConversationId('new');
     }
   };
 
   const fetchMessages = async () => {
+    if (!conversationId || conversationId === 'new') return;
+
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.getMessages(conversationId);
       setMessages(data || []);
-
-      // Mark messages as read
-      await supabase
-        .from('messages')
-        .update({ read: true })
-        .eq('conversation_id', conversationId)
-        .eq('to_user', user!.id)
-        .eq('read', false);
     } catch (error: any) {
       console.error('Error fetching messages:', error);
     }
   };
 
-  const subscribeToMessages = () => {
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!conversationId || sending) return;
+    if (sending) return;
 
     // Validate message content
     const validation = messageSchema.safeParse({ content: newMessage });
@@ -167,22 +119,20 @@ export const ChatDialog = ({
 
     setSending(true);
     try {
-      const { error } = await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        from_user: user!.id,
+      await api.sendMessage({
         to_user: ownerId,
+        property_id: propertyId,
         content: validation.data.content,
       });
 
-      if (error) throw error;
-
-      // Update conversation last message time
-      await supabase
-        .from('conversations')
-        .update({ last_message_at: new Date().toISOString() })
-        .eq('id', conversationId);
-
       setNewMessage('');
+      // Refresh messages after sending
+      if (conversationId && conversationId !== 'new') {
+        fetchMessages();
+      } else {
+        // Re-initialize to get the conversation ID
+        initializeConversation();
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -225,16 +175,14 @@ export const ChatDialog = ({
               messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.from_user === user?.id ? 'justify-end' : 'justify-start'
-                  }`}
+                  className={`flex ${message.from_user === user?.id ? 'justify-end' : 'justify-start'
+                    }`}
                 >
                   <div
-                    className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                      message.from_user === user?.id
+                    className={`max-w-[70%] rounded-lg px-4 py-2 ${message.from_user === user?.id
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
-                    }`}
+                      }`}
                   >
                     <p className="text-sm">{message.content}</p>
                     <span className="text-xs opacity-70">

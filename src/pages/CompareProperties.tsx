@@ -1,35 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api, Property } from '@/lib/api';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SafetyScore } from '@/components/SafetyScore';
-import { 
-  IndianRupee, 
-  MapPin, 
-  Users, 
+import {
+  IndianRupee,
+  MapPin,
+  Users,
   Calendar,
   Check,
   X,
   ArrowLeft
 } from 'lucide-react';
-
-interface Property {
-  id: string;
-  title: string;
-  address: string;
-  city: string;
-  monthly_rent: number;
-  deposit: number;
-  gender_preference: string;
-  amenities: string[];
-  photos: string[];
-  available_from: string;
-  safety_score: number;
-  instant_booking: boolean;
-}
 
 const CompareProperties = () => {
   const [searchParams] = useSearchParams();
@@ -47,13 +32,10 @@ const CompareProperties = () => {
 
   const fetchProperties = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .in('id', propertyIds);
-
-      if (error) throw error;
-      setProperties(data || []);
+      // Fetch all properties and filter by IDs
+      const allProperties = await api.getProperties();
+      const filtered = allProperties.filter(p => propertyIds.includes(p.id));
+      setProperties(filtered);
     } catch (error) {
       console.error('Error fetching properties:', error);
     } finally {

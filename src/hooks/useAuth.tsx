@@ -1,13 +1,28 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { api, setToken, getToken, removeToken, AuthResponse } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 type AppRole = 'customer' | 'owner' | 'admin';
 
+interface User {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_verified: boolean;
+}
+
+interface Profile {
+  id: string;
+  user_id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  profile_photo?: string;
+}
+
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
+  profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, role: AppRole) => Promise<{ error: any }>;
@@ -21,115 +36,59 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-    
-    if (!error && data) {
-      setRole(data.role as AppRole);
+  useEffect(() => {
+    // Check for existing token and load user
+    const token = getToken();
+    if (token) {
+      loadCurrentUser();
+    } else {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const ensureRolePresent = async (u: User) => {
+  const loadCurrentUser = async () => {
     try {
-      // SECURITY: Only READ roles from database, never write based on user metadata
-      // User metadata is client-controllable and should never be trusted for authorization
-      const { data: rows, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', u.id);
-
-      if (!error && rows && rows.length > 0) {
-        // Use the role from database (set by admins only)
-        setRole(rows[0].role as AppRole);
-      } else {
-        // Default to customer for new users without assigned roles
-        // Note: Owner role must be assigned by admin after approval
-        setRole('customer');
-      }
-    } catch (_) {
-      // On error, default to customer role for safety
-      setRole('customer');
+      const response = await api.getCurrentUser();
+      setUser(response.user);
+      setProfile(response.profile);
+      setRole(response.role);
+    } catch (error) {
+      // Token invalid, remove it
+      removeToken();
+      setUser(null);
+      setProfile(null);
+      setRole(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   const refreshRole = async () => {
-    if (user) {
-      await fetchUserRole(user.id);
+    if (getToken()) {
+      await loadCurrentUser();
     }
   };
 
-  useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Defer role fetch with setTimeout to avoid deadlock
-          setLoading(true);
-          setTimeout(() => {
-            ensureRolePresent(session.user).finally(() => {
-              setLoading(false);
-            });
-          }, 0);
-        } else {
-          setRole(null);
-          setLoading(false);
-        }
-      }
-    );
-
-  // THEN check for existing session
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-    setUser(session?.user ?? null);
-    
-    if (session?.user) {
-      setLoading(true);
-      setTimeout(() => {
-        ensureRolePresent(session.user).finally(() => {
-          setLoading(false);
-        });
-      }, 0);
-    } else {
-      setLoading(false);
-    }
-  });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const signUp = async (email: string, password: string, name: string, selectedRole: AppRole) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: { 
-            name,
-            requested_role: selectedRole // Store requested role in metadata
-          }
-        }
-      });
+      const response = await api.signup(email, password, name, selectedRole);
 
-      if (error) throw error;
+      // Store token
+      setToken(response.token.access_token);
+
+      // Set user data
+      setUser(response.user);
+      setProfile(response.profile);
+      setRole(response.role);
 
       toast({
         title: "Account created!",
-        description: selectedRole === 'owner' 
+        description: selectedRole === 'owner'
           ? "Your owner account will be activated after admin approval"
           : "Welcome to He&She PG Booking",
       });
@@ -147,16 +106,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Clear previous user state first to prevent stale data
+      setUser(null);
+      setProfile(null);
+      setRole(null);
+      removeToken();
 
-      if (error) throw error;
+      const response = await api.login(email, password);
+
+      // Store token
+      setToken(response.token.access_token);
+
+      // Set user data from fresh response
+      setUser(response.user);
+      setProfile(response.profile);
+      setRole(response.role);
+
+      console.log('Login successful:', {
+        user: response.user.email,
+        role: response.role
+      });
 
       toast({
         title: "Welcome back!",
-        description: "You've successfully signed in",
+        description: `Signed in as ${response.role || 'user'}`,
       });
 
       return { error: null };
@@ -171,9 +144,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    removeToken();
     setUser(null);
-    setSession(null);
+    setProfile(null);
     setRole(null);
     toast({
       title: "Signed out",
@@ -183,13 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const resetPassword = async (email: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/auth`;
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
-      });
-
-      if (error) throw error;
+      await api.resetPassword(email);
 
       toast({
         title: "Password reset email sent",
@@ -208,7 +175,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signUp, signIn, signOut, refreshRole, resetPassword }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, signUp, signIn, signOut, refreshRole, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

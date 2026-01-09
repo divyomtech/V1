@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api, PropertyDetail as PropertyDetailType, Room } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
 import { PropertyReviews } from '@/components/PropertyReviews';
@@ -30,21 +30,9 @@ import {
   MessageCircle,
 } from 'lucide-react';
 
-interface PropertyData {
-  id: string;
-  title: string;
-  description: string;
-  address: string;
-  city: string;
-  locality: string;
-  monthly_rent: number;
-  deposit: number;
-  gender_preference: string;
-  amenities: string[];
-  photos: string[];
-  rules: string;
-  available_from: string;
-  owner_id: string;
+interface PropertyData extends PropertyDetailType {
+  rules?: string;
+  available_from?: string;
   virtual_tour_url?: string;
   safety_score?: number;
   nearby_amenities?: {
@@ -54,19 +42,6 @@ interface PropertyData {
     school?: string[];
   };
   instant_booking?: boolean;
-  profiles?: {
-    name: string;
-    phone: string;
-    profile_photo?: string;
-  };
-}
-
-interface Room {
-  id: string;
-  room_type: string;
-  bed_count: number;
-  price: number;
-  is_available: boolean;
 }
 
 const PropertyDetail = () => {
@@ -83,34 +58,14 @@ const PropertyDetail = () => {
   useEffect(() => {
     if (id) {
       fetchPropertyDetails();
-      fetchRooms();
     }
   }, [id]);
 
   const fetchPropertyDetails = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      
-      // Fetch owner profile separately
-      if (data) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('name, phone, profile_photo')
-          .eq('id', data.owner_id)
-          .single();
-        
-        setProperty({ 
-          ...data, 
-          profiles: profileData,
-          nearby_amenities: data.nearby_amenities as PropertyData['nearby_amenities']
-        });
-      }
+      const data = await api.getProperty(id!);
+      setProperty(data as PropertyData);
+      setRooms(data.rooms || []);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -122,20 +77,6 @@ const PropertyDetail = () => {
     }
   };
 
-  const fetchRooms = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('property_id', id);
-
-      if (error) throw error;
-      setRooms(data || []);
-    } catch (error: any) {
-      console.error('Error fetching rooms:', error);
-    }
-  };
-
   const handleBooking = async (roomId?: string) => {
     if (!user) {
       navigate('/auth');
@@ -143,18 +84,11 @@ const PropertyDetail = () => {
     }
 
     try {
-      const { error } = await supabase.from('bookings').insert({
-        property_id: id,
+      await api.createBooking({
+        property_id: id!,
         room_id: roomId,
-        customer_id: user.id,
-        owner_id: property?.owner_id,
-        amount: property?.monthly_rent || 0,
-        security_deposit: property?.deposit || 0,
-        status: 'requested',
         start_date: new Date().toISOString().split('T')[0],
       });
-
-      if (error) throw error;
 
       toast({
         title: 'Success',
@@ -220,9 +154,8 @@ const PropertyDetail = () => {
               {property.photos?.slice(0, 6).map((photo, idx) => (
                 <div
                   key={idx}
-                  className={`aspect-square rounded-lg overflow-hidden cursor-pointer ${
-                    selectedImage === idx ? 'ring-2 ring-primary' : ''
-                  }`}
+                  className={`aspect-square rounded-lg overflow-hidden cursor-pointer ${selectedImage === idx ? 'ring-2 ring-primary' : ''
+                    }`}
                   onClick={() => setSelectedImage(idx)}
                 >
                   <img src={photo} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
@@ -246,8 +179,8 @@ const PropertyDetail = () => {
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline">
-                        {property.gender_preference === 'male' ? 'Boys Only' : 
-                         property.gender_preference === 'female' ? 'Girls Only' : 'Co-living'}
+                        {property.gender_preference === 'male' ? 'Boys Only' :
+                          property.gender_preference === 'female' ? 'Girls Only' : 'Co-living'}
                       </Badge>
                       {property.safety_score && property.safety_score > 0 && (
                         <SafetyScore score={property.safety_score} />
@@ -395,10 +328,10 @@ const PropertyDetail = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <p className="font-semibold">{property.profiles?.name || 'Owner'}</p>
+                    <p className="font-semibold">{property.owner_profile?.name || 'Owner'}</p>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                       <Phone className="h-4 w-4" />
-                      {property.profiles?.phone || 'Not available'}
+                      {property.owner_profile?.phone || 'Not available'}
                     </div>
                   </div>
                   <Button className="w-full" onClick={() => setChatOpen(true)}>
@@ -425,8 +358,8 @@ const PropertyDetail = () => {
           onOpenChange={setChatOpen}
           propertyId={property.id}
           ownerId={property.owner_id}
-          ownerName={property.profiles?.name || 'Owner'}
-          ownerPhoto={property.profiles?.profile_photo}
+          ownerName={property.owner_profile?.name || 'Owner'}
+          ownerPhoto={property.owner_profile?.profile_photo}
         />
       )}
     </div>

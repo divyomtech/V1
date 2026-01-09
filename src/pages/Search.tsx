@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api, Property } from '@/lib/api';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,19 +18,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFavorites } from '@/hooks/useFavorites';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-interface Property {
-  id: string;
-  title: string;
-  city: string;
-  locality: string;
-  monthly_rent: number;
-  gender_preference: string;
-  amenities: string[];
-  photos: string[];
-  deposit: number;
-  available_from: string;
-}
 
 interface Review {
   rating: number;
@@ -60,39 +47,16 @@ const Search = () => {
 
   const fetchProperties = async () => {
     try {
-      let query = supabase
-        .from('properties')
-        .select('*')
-        .eq('status', 'active');
-
+      const filters: any = {};
       if (genderFilter !== 'all') {
-        query = query.eq('gender_preference', genderFilter as any);
+        filters.gender_preference = genderFilter;
       }
 
-      const { data, error } = await query;
+      const data = await api.getProperties(filters);
+      setProperties(data);
 
-      if (error) throw error;
-      
-      const propertyData = data || [];
-      setProperties(propertyData);
-
-      // Fetch reviews for all properties
-      if (propertyData.length > 0) {
-        const { data: reviewData } = await supabase
-          .from('reviews')
-          .select('property_id, rating')
-          .in('property_id', propertyData.map(p => p.id));
-
-        const reviewsByProperty = (reviewData || []).reduce((acc, review) => {
-          if (!acc[review.property_id]) {
-            acc[review.property_id] = [];
-          }
-          acc[review.property_id].push(review);
-          return acc;
-        }, {} as Record<string, Review[]>);
-
-        setReviews(reviewsByProperty);
-      }
+      // Reviews will be fetched per property from the detail endpoint
+      // For now, we'll show ratings from the listing if available
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -198,7 +162,7 @@ const Search = () => {
       <div className="container py-8">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold mb-6">Find Your Perfect PG</h1>
-          
+
           {/* Search and Filters */}
           <div className="bg-card p-6 rounded-lg shadow-sm mb-6">
             <div className="grid md:grid-cols-4 gap-4 mb-6">
@@ -211,7 +175,7 @@ const Search = () => {
                   className="pl-10"
                 />
               </div>
-              
+
               <Select value={genderFilter} onValueChange={setGenderFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Gender Preference" />
@@ -335,9 +299,9 @@ const Search = () => {
           ) : filteredProperties.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No properties found</p>
-              <Button onClick={() => { 
-                setSearchTerm(''); 
-                setGenderFilter('all'); 
+              <Button onClick={() => {
+                setSearchTerm('');
+                setGenderFilter('all');
                 setPriceRange([0, 50000]);
                 setSelectedAmenities([]);
                 setDateFrom(undefined);
@@ -358,10 +322,9 @@ const Search = () => {
                     key={property.id}
                     className={`hover:shadow-lg transition-shadow ${viewMode === 'list' ? 'flex' : ''}`}
                   >
-                    <div 
-                      className={`relative overflow-hidden ${
-                        viewMode === 'list' ? 'w-64 h-48' : 'aspect-video rounded-t-lg'
-                      }`}
+                    <div
+                      className={`relative overflow-hidden ${viewMode === 'list' ? 'w-64 h-48' : 'aspect-video rounded-t-lg'
+                        }`}
                       onClick={() => navigate(`/properties/${property.id}`)}
                     >
                       {property.photos && property.photos.length > 0 ? (
@@ -376,8 +339,8 @@ const Search = () => {
                         </div>
                       )}
                       <Badge className="absolute top-2 right-2 bg-background/90 text-foreground">
-                        {property.gender_preference === 'male' ? 'Boys' : 
-                         property.gender_preference === 'female' ? 'Girls' : 'Co-living'}
+                        {property.gender_preference === 'male' ? 'Boys' :
+                          property.gender_preference === 'female' ? 'Girls' : 'Co-living'}
                       </Badge>
                       <Button
                         size="icon"
@@ -393,7 +356,7 @@ const Search = () => {
                     </div>
                     <CardContent className={`p-4 ${viewMode === 'list' ? 'flex-1' : ''}`}>
                       <div className="flex items-start justify-between mb-2">
-                        <h3 
+                        <h3
                           className="font-semibold text-lg truncate cursor-pointer flex-1"
                           onClick={() => navigate(`/properties/${property.id}`)}
                         >
@@ -410,7 +373,7 @@ const Search = () => {
                           <Share2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       {reviewCount > 0 && (
                         <div className="flex items-center gap-1 mb-2">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -419,14 +382,14 @@ const Search = () => {
                         </div>
                       )}
 
-                      <div 
+                      <div
                         className="flex items-center text-sm text-muted-foreground mb-3 cursor-pointer"
                         onClick={() => navigate(`/properties/${property.id}`)}
                       >
                         <MapPin className="h-4 w-4 mr-1" />
                         {property.locality}, {property.city}
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center font-semibold text-lg">
                           <IndianRupee className="h-4 w-4" />

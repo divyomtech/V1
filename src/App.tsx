@@ -18,8 +18,14 @@ import Referrals from "./pages/Referrals";
 import OwnerProperties from "./pages/owner/Properties";
 import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
+import OwnerTenants from "./pages/owner/Tenants";
+import OwnerFinances from "./pages/owner/Finances";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminBookings from "./pages/admin/Bookings";
+import AdminSettings from "./pages/admin/Settings";
+import AdminProperties from "./pages/admin/Properties";
+import AdminAnalytics from "./pages/admin/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -75,28 +81,58 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/owner/properties" element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="owner">
                 <OwnerProperties />
               </ProtectedRoute>
             } />
             <Route path="/owner/properties/add" element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="owner">
                 <AddProperty />
               </ProtectedRoute>
             } />
             <Route path="/owner/bookings" element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="owner">
                 <OwnerBookings />
               </ProtectedRoute>
             } />
+            <Route path="/owner/tenants" element={
+              <ProtectedRoute requiredRole="owner">
+                <OwnerTenants />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/finances" element={
+              <ProtectedRoute requiredRole="owner">
+                <OwnerFinances />
+              </ProtectedRoute>
+            } />
             <Route path="/owner/dashboard" element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="owner">
                 <OwnerDashboard />
               </ProtectedRoute>
             } />
             <Route path="/admin" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/bookings" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminBookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/settings" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/properties" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminProperties />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/analytics" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminAnalytics />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

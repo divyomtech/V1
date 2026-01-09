@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -20,28 +20,28 @@ import chennaiImg from "@/assets/cities/chennai.jpg";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const cities = [
-  { 
-    name: "Bangalore", 
+  {
+    name: "Bangalore",
     areas: ["Koramangala", "HSR Layout", "Indiranagar", "Whitefield", "Electronic City", "BTM Layout"],
     image: bangaloreImg
   },
-  { 
-    name: "Hyderabad", 
+  {
+    name: "Hyderabad",
     areas: ["HITEC City", "Gachibowli", "Madhapur", "Banjara Hills", "Kondapur", "Kukatpally"],
     image: hyderabadImg
   },
-  { 
-    name: "Mumbai", 
+  {
+    name: "Mumbai",
     areas: ["Andheri", "Powai", "Borivali", "Thane", "Bandra", "Goregaon"],
     image: mumbaiImg
   },
-  { 
-    name: "Delhi", 
+  {
+    name: "Delhi",
     areas: ["Connaught Place", "Dwarka", "Rohini", "Saket", "Lajpat Nagar", "Karol Bagh"],
     image: delhiImg
   },
-  { 
-    name: "Chennai", 
+  {
+    name: "Chennai",
     areas: ["OMR", "Anna Nagar", "T Nagar", "Velachery", "Tambaram", "Adyar"],
     image: chennaiImg
   }
@@ -64,7 +64,7 @@ const CustomerDashboard = () => {
   const { favorites, toggleFavorite } = useFavorites(user?.id);
 
   const isActive = (path: string) => location.pathname === path;
-  
+
   const selectedCityData = cities.find(c => c.name === selectedCity);
 
   useEffect(() => {
@@ -77,13 +77,12 @@ const CustomerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [profileRes, bookingsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user?.id).single(),
-        supabase.from('bookings').select('*, properties(title, city)').eq('customer_id', user?.id).order('created_at', { ascending: false }).limit(3)
-      ]);
-
-      if (profileRes.data) setProfile(profileRes.data);
-      if (bookingsRes.data) setBookings(bookingsRes.data);
+      // Use profile from useAuth
+      // Bookings will be fetched from API
+      const bookingsData = await api.getBookings();
+      if (bookingsData) {
+        setBookings(bookingsData.slice(0, 3));
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -93,14 +92,8 @@ const CustomerDashboard = () => {
 
   const fetchFeaturedProperties = async () => {
     try {
-      const { data } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(6);
-      
-      if (data) setFeaturedProperties(data);
+      const data = await api.getProperties();
+      if (data) setFeaturedProperties(data.slice(0, 6));
     } catch (error) {
       console.error('Error fetching featured properties:', error);
     }
@@ -108,18 +101,17 @@ const CustomerDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [bookingsRes, favoritesRes, referralsRes] = await Promise.all([
-        supabase.from('bookings').select('id', { count: 'exact' }).eq('customer_id', user?.id).in('status', ['requested', 'accepted']),
-        supabase.from('favorites').select('id', { count: 'exact' }).eq('user_id', user?.id),
-        supabase.from('referrals').select('reward_amount').eq('referrer_id', user?.id).eq('reward_claimed', true)
-      ]);
+      const bookingsData = await api.getBookings();
+      const favoritesData = await api.getFavorites();
 
-      const totalRewards = referralsRes.data?.reduce((sum, r) => sum + r.reward_amount, 0) || 0;
+      const activeBookings = bookingsData?.filter((b: any) =>
+        ['requested', 'accepted', 'active'].includes(b.status)
+      ).length || 0;
 
       setStats({
-        activeBookings: bookingsRes.count || 0,
-        savedProperties: favoritesRes.count || 0,
-        referralRewards: totalRewards
+        activeBookings,
+        savedProperties: favoritesData?.length || 0,
+        referralRewards: 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -128,14 +120,13 @@ const CustomerDashboard = () => {
 
   const fetchPropertiesByLocation = async (city: string, area?: string) => {
     try {
-      let query = supabase.from('properties').select('*').eq('city', city).eq('status', 'active');
-      
-      if (area) {
-        query = query.ilike('address', `%${area}%`);
+      const data = await api.getProperties({ city });
+      if (data) {
+        const filtered = area
+          ? data.filter((p: any) => p.address?.toLowerCase().includes(area.toLowerCase()))
+          : data;
+        setProperties(filtered.slice(0, 10));
       }
-      
-      const { data } = await query.limit(10);
-      if (data) setProperties(data);
     } catch (error) {
       console.error('Error fetching properties:', error);
     }
@@ -269,11 +260,10 @@ const CustomerDashboard = () => {
                   onClick={() => handleCityClick(city.name)}
                   className="flex flex-col items-center gap-2 flex-shrink-0"
                 >
-                  <div className={`w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center transition-all shadow-md ${
-                    selectedCity === city.name 
-                      ? 'ring-4 ring-primary scale-105' 
+                  <div className={`w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center transition-all shadow-md ${selectedCity === city.name
+                      ? 'ring-4 ring-primary scale-105'
                       : 'hover:ring-4 hover:ring-accent/50 hover:scale-105'
-                  }`}>
+                    }`}>
                     <img src={city.image} alt={city.name} className="w-full h-full object-cover" />
                   </div>
                   <span className="text-sm font-semibold">{city.name}</span>
@@ -319,11 +309,10 @@ const CustomerDashboard = () => {
                   <button
                     key={area}
                     onClick={() => handleAreaClick(area)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 transition-all ${
-                      selectedArea === area
+                    className={`px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 transition-all ${selectedArea === area
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-background text-foreground hover:bg-muted'
-                    }`}
+                      }`}
                   >
                     {area}
                   </button>
@@ -339,291 +328,289 @@ const CustomerDashboard = () => {
             </div>
           )}
 
-        {/* Properties Section */}
-        {properties.length > 0 && (
-          <div className="px-4 py-4">
-            <h3 className="font-semibold text-lg mb-4">
-              Available PGs {selectedArea && `in ${selectedArea}`}
-            </h3>
-            <div className="grid gap-3">
-              {properties.map((property) => (
-                <Card 
-                  key={property.id} 
-                  className="overflow-hidden hover:shadow-lg transition-all"
-                >
-                  <div className="relative">
-                    {property.photos && property.photos.length > 0 ? (
-                      <img
-                        src={property.photos[0]}
-                        alt={property.title}
-                        className="w-full h-40 object-cover cursor-pointer"
-                        onClick={() => navigate(`/properties/${property.id}`)}
-                      />
-                    ) : (
-                      <div className="w-full h-40 bg-muted flex items-center justify-center">
-                        <Camera className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      <ShareDialog propertyId={property.id} title={property.title} />
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(property.id);
-                        }}
-                      >
-                        <Heart
-                          className={`h-4 w-4 ${
-                            favorites.has(property.id) ? 'fill-red-500 text-red-500' : ''
-                          }`}
+          {/* Properties Section */}
+          {properties.length > 0 && (
+            <div className="px-4 py-4">
+              <h3 className="font-semibold text-lg mb-4">
+                Available PGs {selectedArea && `in ${selectedArea}`}
+              </h3>
+              <div className="grid gap-3">
+                {properties.map((property) => (
+                  <Card
+                    key={property.id}
+                    className="overflow-hidden hover:shadow-lg transition-all"
+                  >
+                    <div className="relative">
+                      {property.photos && property.photos.length > 0 ? (
+                        <img
+                          src={property.photos[0]}
+                          alt={property.title}
+                          className="w-full h-40 object-cover cursor-pointer"
+                          onClick={() => navigate(`/properties/${property.id}`)}
                         />
-                      </Button>
-                    </div>
-                    {property.instant_booking && (
-                      <Badge className="absolute top-2 left-2 bg-green-600">
-                        <Zap className="h-3 w-3 mr-1" />
-                        Instant Booking
-                      </Badge>
-                    )}
-                    {property.virtual_tour_url && (
-                      <Badge className="absolute bottom-2 left-2 bg-purple-600">
-                        <Video className="h-3 w-3 mr-1" />
-                        Virtual Tour
-                      </Badge>
-                    )}
-                  </div>
-                  <CardContent className="p-4 cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{property.title}</h4>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {property.locality}, {property.city}
-                        </p>
+                      ) : (
+                        <div className="w-full h-40 bg-muted flex items-center justify-center">
+                          <Camera className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        <ShareDialog propertyId={property.id} title={property.title} />
+                        <Button
+                          size="icon"
+                          variant="secondary"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(property.id);
+                          }}
+                        >
+                          <Heart
+                            className={`h-4 w-4 ${favorites.has(property.id) ? 'fill-red-500 text-red-500' : ''
+                              }`}
+                          />
+                        </Button>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-primary font-bold text-lg">
-                        ₹{property.monthly_rent?.toLocaleString()}/mo
-                      </p>
-                      {property.safety_score && property.safety_score > 0 && (
-                        <SafetyScore score={property.safety_score} />
+                      {property.instant_booking && (
+                        <Badge className="absolute top-2 left-2 bg-green-600">
+                          <Zap className="h-3 w-3 mr-1" />
+                          Instant Booking
+                        </Badge>
+                      )}
+                      {property.virtual_tour_url && (
+                        <Badge className="absolute bottom-2 left-2 bg-purple-600">
+                          <Video className="h-3 w-3 mr-1" />
+                          Virtual Tour
+                        </Badge>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Welcome Section - only show when no city selected */}
-        {!selectedCity && (
-          <>
-            <div className="px-4 py-8 bg-gradient-to-r from-primary/10 to-accent/10 border-y border-border">
-              <h2 className="text-3xl font-bold mb-2">Welcome back, {profile?.name || 'Guest'}!</h2>
-              <p className="text-muted-foreground">Find your perfect PG accommodation</p>
-            </div>
-
-            {/* Quick Stats Cards */}
-            <div className="px-4 py-6 border-b border-border">
-              <div className="grid grid-cols-3 gap-3">
-                <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/bookings')}>
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                      <Calendar className="h-6 w-6 text-primary" />
-                    </div>
-                    <p className="text-2xl font-bold">{stats.activeBookings}</p>
-                    <p className="text-xs text-muted-foreground">Active Bookings</p>
-                  </div>
-                </Card>
-                <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/favorites')}>
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-2">
-                      <Heart className="h-6 w-6 text-red-600" />
-                    </div>
-                    <p className="text-2xl font-bold">{stats.savedProperties}</p>
-                    <p className="text-xs text-muted-foreground">Saved PGs</p>
-                  </div>
-                </Card>
-                <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/referrals')}>
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-                      <Gift className="h-6 w-6 text-green-600" />
-                    </div>
-                    <p className="text-2xl font-bold">₹{stats.referralRewards}</p>
-                    <p className="text-xs text-muted-foreground">Rewards</p>
-                  </div>
-                </Card>
-              </div>
-            </div>
-
-            {/* Featured Properties */}
-            {featuredProperties.length > 0 && (
-              <div className="px-4 py-6 border-b border-border">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Featured PGs
-                  </h3>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
-                    View All
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {featuredProperties.slice(0, 4).map((property) => (
-                    <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
-                      <div className="relative">
-                        {property.photos && property.photos.length > 0 ? (
-                          <img
-                            src={property.photos[0]}
-                            alt={property.title}
-                            className="w-full h-32 object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-32 bg-muted flex items-center justify-center">
-                            <Camera className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        {property.instant_booking && (
-                          <Badge className="absolute top-2 left-2 bg-green-600 text-xs">
-                            <Zap className="h-2 w-2 mr-1" />
-                            Instant
-                          </Badge>
-                        )}
-                        {property.virtual_tour_url && (
-                          <Badge className="absolute top-2 right-2 bg-purple-600 text-xs">
-                            <Video className="h-2 w-2" />
-                          </Badge>
+                    <CardContent className="p-4 cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{property.title}</h4>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {property.locality}, {property.city}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-primary font-bold text-lg">
+                          ₹{property.monthly_rent?.toLocaleString()}/mo
+                        </p>
+                        {property.safety_score && property.safety_score > 0 && (
+                          <SafetyScore score={property.safety_score} />
                         )}
                       </div>
-                      <CardContent className="p-3">
-                        <h4 className="font-semibold text-sm truncate">{property.title}</h4>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-2 w-2" />
-                          {property.city}
-                        </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-primary font-bold text-sm">
-                            ₹{property.monthly_rent?.toLocaleString()}
-                          </p>
-                          {property.safety_score && property.safety_score >= 4 && (
-                            <div className="flex items-center gap-1 text-xs text-green-600">
-                              <Star className="h-3 w-3 fill-current" />
-                              {property.safety_score}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Welcome Section - only show when no city selected */}
+          {!selectedCity && (
+            <>
+              <div className="px-4 py-8 bg-gradient-to-r from-primary/10 to-accent/10 border-y border-border">
+                <h2 className="text-3xl font-bold mb-2">Welcome back, {profile?.name || 'Guest'}!</h2>
+                <p className="text-muted-foreground">Find your perfect PG accommodation</p>
+              </div>
+
+              {/* Quick Stats Cards */}
+              <div className="px-4 py-6 border-b border-border">
+                <div className="grid grid-cols-3 gap-3">
+                  <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/bookings')}>
+                    <div className="text-center">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                        <Calendar className="h-6 w-6 text-primary" />
+                      </div>
+                      <p className="text-2xl font-bold">{stats.activeBookings}</p>
+                      <p className="text-xs text-muted-foreground">Active Bookings</p>
+                    </div>
+                  </Card>
+                  <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/favorites')}>
+                    <div className="text-center">
+                      <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-2">
+                        <Heart className="h-6 w-6 text-red-600" />
+                      </div>
+                      <p className="text-2xl font-bold">{stats.savedProperties}</p>
+                      <p className="text-xs text-muted-foreground">Saved PGs</p>
+                    </div>
+                  </Card>
+                  <Card className="p-4 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/referrals')}>
+                    <div className="text-center">
+                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                        <Gift className="h-6 w-6 text-green-600" />
+                      </div>
+                      <p className="text-2xl font-bold">₹{stats.referralRewards}</p>
+                      <p className="text-xs text-muted-foreground">Rewards</p>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Featured Properties */}
+              {featuredProperties.length > 0 && (
+                <div className="px-4 py-6 border-b border-border">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-lg flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      Featured PGs
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
+                      View All
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {featuredProperties.slice(0, 4).map((property) => (
+                      <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
+                        <div className="relative">
+                          {property.photos && property.photos.length > 0 ? (
+                            <img
+                              src={property.photos[0]}
+                              alt={property.title}
+                              className="w-full h-32 object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-muted flex items-center justify-center">
+                              <Camera className="h-8 w-8 text-muted-foreground" />
                             </div>
                           )}
+                          {property.instant_booking && (
+                            <Badge className="absolute top-2 left-2 bg-green-600 text-xs">
+                              <Zap className="h-2 w-2 mr-1" />
+                              Instant
+                            </Badge>
+                          )}
+                          {property.virtual_tour_url && (
+                            <Badge className="absolute top-2 right-2 bg-purple-600 text-xs">
+                              <Video className="h-2 w-2" />
+                            </Badge>
+                          )}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* About PGs Section */}
-            <div className="px-4 py-6 bg-gradient-to-br from-primary/5 via-background to-accent/20 border-b border-border">
-              <div className="max-w-2xl mx-auto">
-                <h3 className="text-xl font-bold mb-4 text-primary">Why Choose HE&amp;SHE PG?</h3>
-                <div className="grid gap-4">
-                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Home className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold mb-1">Verified Properties</h4>
-                      <p className="text-sm text-muted-foreground">All PGs are verified and inspected for quality and safety</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold mb-1">Prime Locations</h4>
-                      <p className="text-sm text-muted-foreground">PGs in top areas with easy access to work hubs and amenities</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold mb-1">Easy Booking</h4>
-                      <p className="text-sm text-muted-foreground">Simple booking process with instant confirmation</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Recent Bookings - only show when no city selected */}
-        {!selectedCity && (
-          <div 
-            className="px-4 py-6 relative overflow-hidden"
-            style={{
-              backgroundImage: `linear-gradient(135deg, hsl(var(--primary) / 0.05) 0%, hsl(var(--accent) / 0.1) 100%)`,
-            }}
-          >
-            {/* Decorative background pattern */}
-            <div className="absolute inset-0 opacity-[0.03]" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
-            
-            <div className="relative z-10">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Recent Bookings
-              </h3>
-              {loading ? (
-                <p className="text-center text-muted-foreground py-8">Loading...</p>
-              ) : bookings.length === 0 ? (
-                <Card className="text-center py-12 bg-background/80 backdrop-blur-sm border-2 border-dashed">
-                  <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground mb-4">No bookings yet</p>
-                  <Button onClick={() => navigate('/search')} size="sm" className="gap-2">
-                    <Search className="h-4 w-4" />
-                    Search for PGs
-                  </Button>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {bookings.map((booking: any) => (
-                    <Card key={booking.id} className="p-4 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer bg-background/90 backdrop-blur-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
-                            <Home className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">{booking.properties?.title}</h4>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {booking.properties?.city}
+                        <CardContent className="p-3">
+                          <h4 className="font-semibold text-sm truncate">{property.title}</h4>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-2 w-2" />
+                            {property.city}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-primary font-bold text-sm">
+                              ₹{property.monthly_rent?.toLocaleString()}
                             </p>
+                            {property.safety_score && property.safety_score >= 4 && (
+                              <div className="flex items-center gap-1 text-xs text-green-600">
+                                <Star className="h-3 w-3 fill-current" />
+                                {property.safety_score}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          booking.status === 'requested' ? 'bg-accent text-accent-foreground' :
-                          booking.status === 'accepted' ? 'bg-primary/10 text-primary' :
-                          booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
-                          {booking.status}
-                        </span>
-                      </div>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* About PGs Section */}
+              <div className="px-4 py-6 bg-gradient-to-br from-primary/5 via-background to-accent/20 border-b border-border">
+                <div className="max-w-2xl mx-auto">
+                  <h3 className="text-xl font-bold mb-4 text-primary">Why Choose HE&amp;SHE PG?</h3>
+                  <div className="grid gap-4">
+                    <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Home className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">Verified Properties</h4>
+                        <p className="text-sm text-muted-foreground">All PGs are verified and inspected for quality and safety</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">Prime Locations</h4>
+                        <p className="text-sm text-muted-foreground">PGs in top areas with easy access to work hubs and amenities</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-background/80 backdrop-blur-sm p-4 rounded-lg shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Calendar className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">Easy Booking</h4>
+                        <p className="text-sm text-muted-foreground">Simple booking process with instant confirmation</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Recent Bookings - only show when no city selected */}
+          {!selectedCity && (
+            <div
+              className="px-4 py-6 relative overflow-hidden"
+              style={{
+                backgroundImage: `linear-gradient(135deg, hsl(var(--primary) / 0.05) 0%, hsl(var(--accent) / 0.1) 100%)`,
+              }}
+            >
+              {/* Decorative background pattern */}
+              <div className="absolute inset-0 opacity-[0.03]" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }} />
+
+              <div className="relative z-10">
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Recent Bookings
+                </h3>
+                {loading ? (
+                  <p className="text-center text-muted-foreground py-8">Loading...</p>
+                ) : bookings.length === 0 ? (
+                  <Card className="text-center py-12 bg-background/80 backdrop-blur-sm border-2 border-dashed">
+                    <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground mb-4">No bookings yet</p>
+                    <Button onClick={() => navigate('/search')} size="sm" className="gap-2">
+                      <Search className="h-4 w-4" />
+                      Search for PGs
+                    </Button>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {bookings.map((booking: any) => (
+                      <Card key={booking.id} className="p-4 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer bg-background/90 backdrop-blur-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                              <Home className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">{booking.properties?.title}</h4>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {booking.properties?.city}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${booking.status === 'requested' ? 'bg-accent text-accent-foreground' :
+                              booking.status === 'accepted' ? 'bg-primary/10 text-primary' :
+                                booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+                                  'bg-muted text-muted-foreground'
+                            }`}>
+                            {booking.status}
+                          </span>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </main>
 
@@ -634,28 +621,28 @@ const CustomerDashboard = () => {
             onClick={() => navigate('/')}
             className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
-            <Home 
+            <Home
               className={`h-6 w-6 transition-colors ${isActive('/') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/') ? 'currentColor' : 'none'}
             />
             {isActive('/') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
-          
+
           <button
             onClick={() => navigate('/search')}
             className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
-            <Search 
+            <Search
               className={`h-6 w-6 transition-colors ${isActive('/search') ? 'text-primary' : 'text-muted-foreground'}`}
             />
             {isActive('/search') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
-          
+
           <button
             onClick={() => navigate('/favorites')}
             className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
-            <Heart 
+            <Heart
               className={`h-6 w-6 transition-colors ${isActive('/favorites') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/favorites') ? 'currentColor' : 'none'}
             />
@@ -666,23 +653,23 @@ const CustomerDashboard = () => {
             )}
             {isActive('/favorites') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
-          
+
           <button
             onClick={() => navigate('/bookings')}
             className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
-            <Calendar 
+            <Calendar
               className={`h-6 w-6 transition-colors ${isActive('/bookings') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/bookings') ? 'currentColor' : 'none'}
             />
             {isActive('/bookings') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
           </button>
-          
+
           <button
             onClick={() => navigate('/profile')}
             className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
           >
-            <User 
+            <User
               className={`h-6 w-6 transition-colors ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
               fill={isActive('/profile') ? 'currentColor' : 'none'}
             />
