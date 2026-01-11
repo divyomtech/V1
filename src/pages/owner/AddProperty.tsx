@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Header from '@/components/Header';
@@ -44,9 +44,12 @@ const AMENITIES = [
 
 const AddProperty = () => {
   const navigate = useNavigate();
+  const { id: propertyId } = useParams<{ id: string }>();
+  const isEditMode = Boolean(propertyId);
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -61,6 +64,42 @@ const AddProperty = () => {
     amenities: [] as string[],
     photos: '',
   });
+
+  // Load existing property data in edit mode
+  useEffect(() => {
+    if (isEditMode && propertyId) {
+      const loadProperty = async () => {
+        try {
+          const property = await api.getProperty(propertyId);
+          setFormData({
+            title: property.title || '',
+            description: property.description || '',
+            address: property.address || '',
+            city: property.city || '',
+            locality: property.locality || '',
+            monthly_rent: String(property.monthly_rent || ''),
+            deposit: String(property.deposit || ''),
+            gender_preference: property.gender_preference || 'male',
+            available_from: property.available_from?.split('T')[0] || new Date().toISOString().split('T')[0],
+            rules: property.rules || '',
+            amenities: property.amenities || [],
+            photos: (property.photos || []).join('\n'),
+          });
+        } catch (error: any) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to load property data',
+          });
+          navigate('/owner/properties');
+        } finally {
+          setInitialLoading(false);
+        }
+      };
+      loadProperty();
+    }
+  }, [isEditMode, propertyId]);
+
 
   const handleChange = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
@@ -105,8 +144,7 @@ const AddProperty = () => {
       // Validate all inputs
       const validatedData = propertySchema.parse(dataToValidate);
 
-      // Insert validated data via API
-      await api.createProperty({
+      const propertyData = {
         title: validatedData.title,
         description: validatedData.description || undefined,
         address: validatedData.address,
@@ -116,15 +154,26 @@ const AddProperty = () => {
         deposit: validatedData.deposit,
         gender_preference: validatedData.gender_preference as 'male' | 'female' | 'mixed',
         available_from: validatedData.available_from,
+        rules: validatedData.rules || undefined,
         amenities: validatedData.amenities,
         photos: validatedData.photos,
-        status: 'active',
-      });
+        status: 'active' as const,
+      };
 
-      toast({
-        title: 'Success',
-        description: 'Property added successfully',
-      });
+      // Use update API for edit mode, create API for add mode
+      if (isEditMode && propertyId) {
+        await api.updateProperty(propertyId, propertyData);
+        toast({
+          title: 'Success',
+          description: 'Property updated successfully',
+        });
+      } else {
+        await api.createProperty(propertyData);
+        toast({
+          title: 'Success',
+          description: 'Property added successfully',
+        });
+      }
 
       navigate('/owner/properties');
     } catch (error: any) {
@@ -153,7 +202,7 @@ const AddProperty = () => {
       <Header />
       <div className="container py-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Add New Property</h1>
+          <h1 className="text-3xl font-bold mb-8">{isEditMode ? 'Edit Property' : 'Add New Property'}</h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
@@ -369,7 +418,7 @@ const AddProperty = () => {
               </Button>
               <Button type="submit" disabled={loading} className="flex-1">
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Add Property
+                {isEditMode ? 'Update Property' : 'Add Property'}
               </Button>
             </div>
           </form>

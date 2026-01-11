@@ -61,7 +61,7 @@ const AdminBookings = () => {
             // Fetch all bookings (admin endpoint)
             let allBookings: Booking[] = [];
             try {
-                const response = await api.getBookings();
+                const response = await api.getAllBookings();
                 allBookings = response;
             } catch (e) {
                 console.log('Using fallback booking data');

@@ -26,8 +26,11 @@ const OwnerProperties = () => {
     try {
       // API returns all properties, owner filtering done on backend
       const data = await api.getProperties();
-      // Filter by owner on frontend for now
-      const ownedProperties = data.filter(p => p.owner_id === user?.id);
+      console.log('All properties:', data);
+      console.log('Current user ID:', user?.id);
+      // Filter by owner on frontend - convert both to string for comparison
+      const ownedProperties = data.filter(p => String(p.owner_id) === String(user?.id));
+      console.log('Owned properties:', ownedProperties);
       setProperties(ownedProperties);
     } catch (error: any) {
       toast({

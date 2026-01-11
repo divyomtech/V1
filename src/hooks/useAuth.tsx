@@ -127,11 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role: response.role
       });
 
-      toast({
-        title: "Welcome back!",
-        description: `Signed in as ${response.role || 'user'}`,
-      });
-
+      // Toast removed - role validation in Auth.tsx will handle redirects
       return { error: null };
     } catch (error: any) {
       toast({
@@ -148,10 +144,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setProfile(null);
     setRole(null);
-    toast({
-      title: "Signed out",
-      description: "You've been successfully signed out",
-    });
   };
 
   const resetPassword = async (email: string) => {

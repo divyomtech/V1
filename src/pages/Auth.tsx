@@ -29,7 +29,7 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpPhone, setOtpPhone] = useState('');
-  const { signUp, signIn, resetPassword, user, loading, role } = useAuth();
+  const { signUp, signIn, signOut, resetPassword, user, loading, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -53,29 +53,49 @@ const Auth = () => {
 
   useEffect(() => {
     if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
-      if (role === 'admin') {
+      // Validate role matches the selected login mode
+      if (loginMode === 'admin') {
+        // Admin login mode - require admin role
+        if (role !== 'admin') {
+          if (role === 'owner') {
+            setErrors({ login: 'This is an owner account. Use Owner Login.' });
+          } else {
+            setErrors({ login: 'This is a user account. Use User Login.' });
+          }
+          signOut();
+          return;
+        }
+        toast({ title: 'Login successful', description: 'Welcome to Admin Dashboard' });
         navigate('/admin');
       } else if (loginMode === 'owner') {
-        // Direct owners to the owner area even if role assignment is pending
+        // Owner login mode - require owner role
         if (role !== 'owner') {
-          toast({
-            title: 'Owner mode',
-            description: 'Routing to owner area. If approval is pending, some features may be limited.',
-          });
+          if (role === 'admin') {
+            setErrors({ login: 'This is an admin account. Use Admin Login.' });
+          } else {
+            setErrors({ login: 'This is a user account. Use User Login.' });
+          }
+          signOut();
+          return;
         }
+        toast({ title: 'Login successful', description: 'Welcome to Owner Dashboard' });
         navigate('/owner/dashboard');
       } else {
-        if (loginMode === 'admin') {
-          toast({
-            variant: 'destructive',
-            title: 'No admin access',
-            description: "This account doesn't have admin privileges. Logged in as a regular user.",
-          });
+        // User login mode - require customer role
+        if (role !== 'customer') {
+          if (role === 'admin') {
+            setErrors({ login: 'This is an admin account. Use Admin Login.' });
+          } else if (role === 'owner') {
+            setErrors({ login: 'This is an owner account. Use Owner Login.' });
+          }
+          signOut();
+          return;
         }
+        toast({ title: 'Login successful', description: 'Welcome back!' });
         navigate('/');
       }
     }
-  }, [user, role, loading, navigate, view, loginMode, toast]);
+  }, [user, role, loading, navigate, view, loginMode, signOut, toast]);
 
   const validateForm = () => {
     try {
@@ -102,7 +122,14 @@ const Auth = () => {
     if (!validateForm()) return;
 
     if (view === 'login') {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+
+      // If login was successful, validate role matches selected login mode
+      if (!result.error) {
+        // We need to check the role from the response
+        // The role is set in the auth context after successful login
+        // We'll validate in useEffect after role is updated
+      }
     } else {
       await signUp(email, password, name, signupRole);
     }
@@ -297,7 +324,7 @@ const Auth = () => {
             <Button
               type="button"
               variant={loginMode === 'user' ? 'default' : 'outline'}
-              onClick={() => setLoginMode('user')}
+              onClick={() => { setLoginMode('user'); setErrors({}); }}
               className="h-10"
             >
               User Login
@@ -305,7 +332,7 @@ const Auth = () => {
             <Button
               type="button"
               variant={loginMode === 'owner' ? 'default' : 'outline'}
-              onClick={() => setLoginMode('owner')}
+              onClick={() => { setLoginMode('owner'); setErrors({}); }}
               className="h-10"
             >
               Owner Login
@@ -313,7 +340,7 @@ const Auth = () => {
             <Button
               type="button"
               variant={loginMode === 'admin' ? 'default' : 'outline'}
-              onClick={() => setLoginMode('admin')}
+              onClick={() => { setLoginMode('admin'); setErrors({}); }}
               className="h-10"
             >
               Admin Login
@@ -340,6 +367,7 @@ const Auth = () => {
                 className="h-12 text-base"
               />
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+              {errors.login && <p className="text-sm text-destructive mt-2 text-center font-medium">{errors.login}</p>}
             </div>
 
             <div className="pt-6">

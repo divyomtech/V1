@@ -90,6 +90,11 @@ const App = () => (
                 <AddProperty />
               </ProtectedRoute>
             } />
+            <Route path="/owner/properties/edit/:id" element={
+              <ProtectedRoute requiredRole="owner">
+                <AddProperty />
+              </ProtectedRoute>
+            } />
             <Route path="/owner/bookings" element={
               <ProtectedRoute requiredRole="owner">
                 <OwnerBookings />

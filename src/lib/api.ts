@@ -72,6 +72,7 @@ export interface Property {
     amenities?: string[];
     monthly_rent: number;
     deposit: number;
+    rules?: string;
     photos?: string[];
     status: string;
     available_from?: string;
@@ -169,6 +170,13 @@ export const api = {
         });
     },
 
+    async updateProperty(id: string, data: Partial<Property>): Promise<Property> {
+        return request<Property>(`/api/properties/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
     // Favorites
     async getFavorites(): Promise<Favorite[]> {
         return request<Favorite[]>('/api/favorites');
@@ -192,6 +200,11 @@ export const api = {
         return request('/api/bookings');
     },
 
+    async getAllBookings(status?: string): Promise<any[]> {
+        const query = status ? `?status_filter=${status}` : '';
+        return request(`/api/bookings/all${query}`);
+    },
+
     async createBooking(data: {
         property_id: string;
         room_id?: string;
@@ -201,6 +214,20 @@ export const api = {
         return request('/api/bookings', {
             method: 'POST',
             body: JSON.stringify(data),
+        });
+    },
+
+    async updateBookingStatus(bookingId: string, status: 'accepted' | 'cancelled' | 'paid' | 'checked-in' | 'completed'): Promise<any> {
+        return request(`/api/bookings/${bookingId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status }),
+        });
+    },
+
+    async cancelBooking(bookingId: string, cancelReason?: string): Promise<any> {
+        return request(`/api/bookings/${bookingId}/cancel`, {
+            method: 'PUT',
+            body: JSON.stringify({ cancel_reason: cancelReason }),
         });
     },
 

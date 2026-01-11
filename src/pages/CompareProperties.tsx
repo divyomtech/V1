@@ -177,7 +177,7 @@ const CompareProperties = () => {
                   {/* Action */}
                   <Button
                     className="w-full"
-                    onClick={() => navigate(`/property/${property.id}`)}
+                    onClick={() => navigate(`/properties/${property.id}`)}
                   >
                     View Details
                   </Button>

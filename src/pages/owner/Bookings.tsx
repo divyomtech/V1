@@ -50,16 +50,24 @@ const OwnerBookings = () => {
     }
   };
 
-  const handleBookingAction = async (bookingId: string, newStatus: string) => {
-    // Booking status update API not implemented yet
-    toast({
-      title: 'Info',
-      description: 'Booking status update requires backend implementation.',
-    });
-    // Optimistically update UI
-    setBookings(bookings.map(b =>
-      b.id === bookingId ? { ...b, status: newStatus } : b
-    ));
+  const handleBookingAction = async (bookingId: string, newStatus: 'accepted' | 'cancelled') => {
+    try {
+      await api.updateBookingStatus(bookingId, newStatus);
+      // Update UI
+      setBookings(bookings.map(b =>
+        b.id === bookingId ? { ...b, status: newStatus } : b
+      ));
+      toast({
+        title: newStatus === 'accepted' ? 'Booking Approved' : 'Booking Rejected',
+        description: `Booking has been ${newStatus === 'accepted' ? 'approved' : 'rejected'} successfully.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to update booking status',
+      });
+    }
   };
 
   const filterBookings = (status: string) => {
@@ -114,14 +122,14 @@ const OwnerBookings = () => {
                               <div className="flex items-center gap-3 mb-3">
                                 <User className="h-5 w-5 text-muted-foreground" />
                                 <div>
-                                  <h3 className="font-semibold text-lg">{booking.profiles.name}</h3>
-                                  <p className="text-sm text-muted-foreground">{booking.profiles.phone}</p>
+                                  <h3 className="font-semibold text-lg">{booking.customer_name || 'Guest'}</h3>
+                                  <p className="text-sm text-muted-foreground">{booking.customer_phone || ''}</p>
                                 </div>
                               </div>
 
                               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                                 <Home className="h-4 w-4" />
-                                <span className="font-medium">{booking.properties.title}</span>
+                                <span className="font-medium">{booking.property?.title || 'Property'}</span>
                               </div>
 
                               <div className="grid grid-cols-2 gap-4 mt-4">

@@ -560,7 +560,7 @@ const OwnerDashboard = () => {
                         <div
                           key={property.id}
                           className="group border rounded-lg overflow-hidden hover:shadow-lg transition-all cursor-pointer"
-                          onClick={() => navigate(`/property/${property.id}`)}
+                          onClick={() => navigate(`/properties/${property.id}`)}
                         >
                           <div className="relative h-48 overflow-hidden">
                             <img
@@ -613,7 +613,7 @@ const OwnerDashboard = () => {
                                 className="flex-1"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/property/${property.id}`);
+                                  navigate(`/properties/${property.id}`);
                                 }}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
@@ -675,7 +675,7 @@ const OwnerDashboard = () => {
         </Tabs>
       </main>
       <Footer />
-    </div>
+    </div >
   );
 };
 
