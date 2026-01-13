@@ -14,7 +14,7 @@ const Header = () => {
   const getRoleBasedNav = () => {
     // Check if on owner routes
     const isOwnerRoute = location.pathname.startsWith('/owner');
-    
+
     if (role === 'owner' || isOwnerRoute) return [
       { label: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
       { label: 'My Properties', href: '/owner/properties', icon: Building2 },
@@ -43,16 +43,26 @@ const Header = () => {
             <h1 className="text-2xl font-bold text-primary">He&She</h1>
           </Link>
         </div>
-        
-{user ? (
+
+        {user ? (
           <>
             <nav className="hidden md:flex items-center gap-6">
-              {getRoleBasedNav().map((item) => (
-                <Link key={item.href} to={item.href} className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-2">
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              ))}
+              {getRoleBasedNav().map((item) => {
+                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={`text-sm font-medium transition-colors flex items-center gap-2 pb-1 border-b-2 ${isActive
+                        ? 'text-primary border-primary'
+                        : 'hover:text-primary border-transparent'
+                      }`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
             <div className="flex items-center gap-4">
               <NotificationBell />

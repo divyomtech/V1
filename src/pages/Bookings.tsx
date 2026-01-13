@@ -120,10 +120,10 @@ const Bookings = () => {
                         <CardContent className="p-0">
                           <div className="flex flex-col md:flex-row">
                             <div className="md:w-48 h-48 md:h-auto relative">
-                              {booking.property.photos && booking.property.photos[0] ? (
+                              {booking.property?.photos && booking.property.photos[0] ? (
                                 <img
                                   src={booking.property.photos[0]}
-                                  alt={booking.property.title}
+                                  alt={booking.property?.title || 'Property'}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -135,10 +135,10 @@ const Bookings = () => {
                             <div className="flex-1 p-6">
                               <div className="flex items-start justify-between mb-4">
                                 <div>
-                                  <h3 className="text-xl font-semibold mb-2">{booking.property.title}</h3>
+                                  <h3 className="text-xl font-semibold mb-2">{booking.property?.title || 'Property'}</h3>
                                   <div className="flex items-center text-muted-foreground mb-2">
                                     <MapPin className="h-4 w-4 mr-1" />
-                                    {booking.property.locality}, {booking.property.city}
+                                    {booking.property?.locality || 'N/A'}, {booking.property?.city || 'N/A'}
                                   </div>
                                   {booking.room && (
                                     <p className="text-sm text-muted-foreground">

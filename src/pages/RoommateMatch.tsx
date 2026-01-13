@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Users, Heart, X, Check } from 'lucide-react';
+import { User, Users, Heart, X, Check, Edit } from 'lucide-react';
 
 interface RoommateProfile {
   id: string;
@@ -34,6 +34,7 @@ interface RoommateProfile {
   preferred_locations: string[];
   bio: string;
   looking_for_roommate: boolean;
+  is_active?: boolean;
   matchScore?: number;
   profiles?: {
     name: string;
@@ -54,6 +55,7 @@ const RoommateMatch = () => {
   const [matches, setMatches] = useState<RoommateProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -90,19 +92,19 @@ const RoommateMatch = () => {
       setFormData({
         age_range: profile.age?.toString() || '',
         occupation: profile.occupation || '',
-        lifestyle: profile.preferences || [],
+        lifestyle: (profile.preferences || []).filter((p: string) => !['smoker', 'non_smoker', 'pet_friendly', 'drinking'].includes(p)),
         interests: profile.hobbies || [],
-        dietary_preference: '',
-        smoking: profile.preferences?.includes('smoker') || false,
-        drinking: false,
-        pets: profile.preferences?.includes('pet_friendly') || false,
-        cleanliness_level: 3,
+        dietary_preference: profile.dietary_preference || '',
+        smoking: profile.smoking || profile.preferences?.includes('smoker') || false,
+        drinking: profile.drinking || profile.preferences?.includes('drinking') || false,
+        pets: profile.pets_allowed || profile.preferences?.includes('pet_friendly') || false,
+        cleanliness_level: profile.cleanliness_level || 3,
         budget_min: profile.budget_min || 5000,
         budget_max: profile.budget_max || 20000,
         preferred_gender: profile.gender || 'any',
-        preferred_locations: profile.preferred_location ? [profile.preferred_location] : [],
+        preferred_locations: profile.preferred_location ? [profile.preferred_location] : (profile.preferred_city ? [profile.preferred_city] : []),
         bio: profile.bio || '',
-        looking_for_roommate: profile.is_active || false,
+        looking_for_roommate: profile.is_active ?? false,
       });
 
       // Fetch matches
@@ -146,13 +148,20 @@ const RoommateMatch = () => {
       const profileData = {
         age: formData.age_range ? parseInt(formData.age_range) : undefined,
         occupation: formData.occupation,
-        preferences: [...formData.lifestyle, formData.smoking ? 'smoker' : 'non_smoker', formData.pets ? 'pet_friendly' : ''].filter(Boolean),
+        preferences: [...formData.lifestyle, formData.smoking ? 'smoker' : 'non_smoker', formData.pets ? 'pet_friendly' : '', formData.drinking ? 'drinking' : ''].filter(Boolean),
         hobbies: formData.interests,
         budget_min: formData.budget_min,
         budget_max: formData.budget_max,
         preferred_city: formData.preferred_locations[0],
+        preferred_location: formData.preferred_locations[0],
         bio: formData.bio,
         gender: formData.preferred_gender,
+        dietary_preference: formData.dietary_preference,
+        smoking: formData.smoking,
+        drinking: formData.drinking,
+        pets_allowed: formData.pets,
+        cleanliness_level: formData.cleanliness_level,
+        is_active: formData.looking_for_roommate,
       };
 
       const savedProfile = await api.createOrUpdateRoommateProfile(profileData);
@@ -217,6 +226,25 @@ const RoommateMatch = () => {
     return Math.min(Math.round(score), 100);
   };
 
+  const handleConnect = async (matchId: string) => {
+    setConnecting(matchId);
+    try {
+      await api.connectWithRoommate(matchId);
+      toast({
+        title: 'Connection Sent!',
+        description: 'Your connection request has been sent to this roommate.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'Failed to send connection request',
+      });
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const sortedMatches = matches
     .map(m => ({ ...m, matchScore: calculateMatchScore(m) }))
     .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
@@ -235,19 +263,16 @@ const RoommateMatch = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container py-8">
+      <div className="container py-8 pb-24">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold mb-2">Roommate Matching</h1>
               <p className="text-muted-foreground">Find your perfect roommate match</p>
             </div>
-            {myProfile && !editing && (
-              <Button onClick={() => setEditing(true)}>Edit Profile</Button>
-            )}
           </div>
 
-          <Tabs defaultValue={myProfile ? 'matches' : 'profile'} className="space-y-6">
+          <Tabs defaultValue="profile" className="space-y-6">
             <TabsList>
               <TabsTrigger value="profile">My Profile</TabsTrigger>
               <TabsTrigger value="matches">Find Matches</TabsTrigger>
@@ -255,8 +280,18 @@ const RoommateMatch = () => {
 
             <TabsContent value="profile">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Roommate Preferences</CardTitle>
+                  {myProfile && !editing && (
+                    <Button
+                      size="sm"
+                      onClick={() => setEditing(true)}
+                      className="bg-amber-500 hover:bg-amber-600 text-white shadow-md hover:shadow-lg transition-all"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-4">
@@ -523,7 +558,7 @@ const RoommateMatch = () => {
             </TabsContent>
 
             <TabsContent value="matches">
-              {!myProfile?.looking_for_roommate ? (
+              {!myProfile?.is_active ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
@@ -579,8 +614,8 @@ const RoommateMatch = () => {
                         <div className="space-y-2 text-sm mb-4">
                           {match.lifestyle && match.lifestyle.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {match.lifestyle.map((item) => (
-                                <Badge key={item} variant="outline" className="text-xs">
+                              {[...new Set(match.lifestyle)].map((item, index) => (
+                                <Badge key={`lifestyle-${index}-${item}`} variant="outline" className="text-xs">
                                   {item.replace('_', ' ')}
                                 </Badge>
                               ))}
@@ -588,8 +623,8 @@ const RoommateMatch = () => {
                           )}
                           {match.interests && match.interests.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {match.interests.map((item) => (
-                                <Badge key={item} variant="secondary" className="text-xs">
+                              {[...new Set(match.interests)].map((item, index) => (
+                                <Badge key={`interest-${index}-${item}`} variant="secondary" className="text-xs">
                                   {item}
                                 </Badge>
                               ))}
@@ -600,8 +635,13 @@ const RoommateMatch = () => {
                           </div>
                         </div>
 
-                        <Button className="w-full" size="sm">
-                          Connect
+                        <Button
+                          className="w-full"
+                          size="sm"
+                          onClick={() => handleConnect(match.id)}
+                          disabled={connecting === match.id}
+                        >
+                          {connecting === match.id ? 'Connecting...' : 'Connect'}
                         </Button>
                       </CardContent>
                     </Card>

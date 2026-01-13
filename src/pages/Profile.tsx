@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Phone, MapPin, Building2, Save, Upload, Check, X, FileText, CreditCard, Shield, Bell, Lock } from "lucide-react";
+import { User, Mail, Phone, MapPin, Building2, Save, Upload, Check, X, FileText, CreditCard, Shield, Bell, Lock, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
@@ -21,6 +21,26 @@ const Profile = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Notification settings state
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(false);
+
+  // Privacy settings state
+  const [hideContactInfo, setHideContactInfo] = useState(false);
+
+  // Password visibility state
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profile, setProfile] = useState<any>({
     name: "",
     full_name: "",
@@ -49,8 +69,20 @@ const Profile = () => {
     work_type: "",
     work_place: "",
     languages_known: [],
-    mother_tongue: ""
+    mother_tongue: "",
+    bank_account_number: "",
+    bank_ifsc_code: "",
+    bank_name: ""
   });
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+  // Helper to get full image URL
+  const getImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url}`;
+  };
 
   useEffect(() => {
     if (!user) {
@@ -93,8 +125,19 @@ const Profile = () => {
           work_type: data.work_type || "",
           work_place: data.work_place || "",
           languages_known: data.languages_known || [],
-          mother_tongue: data.mother_tongue || ""
+          mother_tongue: data.mother_tongue || "",
+          bank_account_number: data.bank_account_number || "",
+          bank_ifsc_code: data.bank_ifsc_code || "",
+          bank_name: data.bank_name || ""
         });
+
+        // Load notification settings from API
+        setEmailNotifications(data.email_notifications !== false);
+        setSmsNotifications(data.sms_notifications !== false);
+        setPushNotifications(data.push_notifications === true);
+
+        // Load privacy settings from API
+        setHideContactInfo(data.hide_contact_info === true);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -112,12 +155,56 @@ const Profile = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.updateProfile({
+      // Build update data with all fields
+      const updateData: any = {
         name: profile.name || profile.full_name,
         phone: profile.phone,
         city: profile.city,
-        address: profile.address || profile.current_address,
-      });
+        address: profile.address,
+        current_address: profile.current_address,
+        permanent_address: profile.permanent_address,
+        profile_photo: profile.profile_photo,
+
+        // Document URLs (saved for both roles)
+        pan_card_url: profile.pan_card_url,
+        gst_doc_url: profile.gst_doc_url,
+        aadhar_front_url: profile.aadhar_front_url,
+        aadhar_back_url: profile.aadhar_back_url,
+        college_company_id_url: profile.college_company_id_url,
+
+        // Notification settings
+        email_notifications: emailNotifications,
+        sms_notifications: smsNotifications,
+        push_notifications: pushNotifications,
+
+        // Privacy settings
+        hide_contact_info: hideContactInfo,
+      };
+
+      // Add owner-specific fields
+      if (role === 'owner') {
+        updateData.display_name = profile.display_name;
+        updateData.business_name = profile.business_name;
+        updateData.about = profile.about;
+        updateData.bank_account_number = profile.bank_account_number;
+        updateData.bank_ifsc_code = profile.bank_ifsc_code;
+        updateData.bank_name = profile.bank_name;
+      }
+
+      // Add customer-specific fields
+      if (role === 'customer') {
+        updateData.gender = profile.gender;
+        updateData.date_of_birth = profile.date_of_birth;
+        updateData.work_type = profile.work_type;
+        updateData.work_place = profile.work_place;
+        updateData.mother_tongue = profile.mother_tongue;
+        updateData.languages_known = profile.languages_known;
+        updateData.emergency_contact_name = profile.emergency_contact_name;
+        updateData.emergency_contact_phone = profile.emergency_contact_phone;
+        updateData.emergency_contact_address = profile.emergency_contact_address;
+      }
+
+      await api.updateProfile(updateData);
 
       toast({
         title: "Profile updated",
@@ -131,6 +218,151 @@ const Profile = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Missing fields",
+        description: "Please fill in all password fields",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        variant: "destructive",
+        title: "Password too short",
+        description: "New password must be at least 8 characters",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Passwords don't match",
+        description: "New password and confirm password must match",
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      toast({
+        title: "Password updated",
+        description: "Your password has been successfully changed",
+      });
+      // Clear fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Password change failed",
+        description: error.message || "Failed to change password",
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file",
+        description: "Please select an image file",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Image must be less than 5MB",
+      });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const result = await api.uploadDocument(file, 'profile_photo');
+      setProfile({ ...profile, profile_photo: result.url, avatar_url: result.url });
+
+      // Also update the profile in the database
+      await api.updateProfile({ profile_photo: result.url });
+
+      toast({
+        title: "Photo uploaded",
+        description: "Your profile photo has been updated",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message || "Failed to upload photo",
+      });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string, fieldName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file",
+        description: "Please select an image (JPG, PNG, WebP) or PDF file",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "File must be less than 5MB",
+      });
+      return;
+    }
+
+    setUploadingDoc(docType);
+    try {
+      const result = await api.uploadDocument(file, docType);
+      setProfile({ ...profile, [fieldName]: result.url });
+
+      toast({
+        title: "Document uploaded",
+        description: `${docType.replace(/_/g, ' ')} has been uploaded successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: error.message || "Failed to upload document",
+      });
+    } finally {
+      setUploadingDoc(null);
     }
   };
 
@@ -187,15 +419,26 @@ const Profile = () => {
                 </CardHeader>
                 <CardContent className="flex items-center gap-4">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={profile.avatar_url || profile.profile_photo} />
+                    <AvatarImage src={getImageUrl(profile.avatar_url || profile.profile_photo)} />
                     <AvatarFallback>
                       {isOwner ? <Building2 className="h-12 w-12" /> : <User className="h-12 w-12" />}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <Button variant="outline">
+                    <input
+                      type="file"
+                      id="photo-upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={uploadingPhoto}
+                      onClick={() => document.getElementById('photo-upload')?.click()}
+                    >
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload Photo
+                      {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
                     </Button>
                     <p className="text-sm text-muted-foreground mt-2">
                       {isOwner ? 'Upload your business logo or photo' : 'Upload a profile picture'}
@@ -302,7 +545,27 @@ const Profile = () => {
                             <Check className="h-3 w-3 mr-1" /> Verified
                           </Badge>
                         ) : (
-                          <Button variant="outline" size="sm">Verify</Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!profile.phone || profile.phone.length < 10}
+                            onClick={() => {
+                              if (!profile.phone || profile.phone.length < 10) {
+                                toast({
+                                  variant: "destructive",
+                                  title: "Invalid phone number",
+                                  description: "Please enter a valid phone number first.",
+                                });
+                                return;
+                              }
+                              toast({
+                                title: "Phone verification",
+                                description: "Phone OTP verification is not yet available. Please save your profile and the phone number will be verified by admin.",
+                              });
+                            }}
+                          >
+                            Verify
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -488,19 +751,63 @@ const Profile = () => {
                       <Label>Aadhar Card</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                          <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground mb-2">Front Side</p>
-                          <Button variant="outline" size="sm">
+                          {profile.aadhar_front_url ? (
+                            <div className="space-y-2">
+                              <Check className="h-8 w-8 mx-auto text-green-500" />
+                              <p className="text-sm text-green-600">Front Side uploaded</p>
+                              <a href={getImageUrl(profile.aadhar_front_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View</a>
+                            </div>
+                          ) : (
+                            <>
+                              <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground mb-2">Front Side</p>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            id="aadhar-front-upload"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => handleDocumentUpload(e, 'aadhar_front', 'aadhar_front_url')}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={uploadingDoc === 'aadhar_front'}
+                            onClick={() => document.getElementById('aadhar-front-upload')?.click()}
+                          >
                             <Upload className="h-4 w-4 mr-2" />
-                            Upload
+                            {uploadingDoc === 'aadhar_front' ? 'Uploading...' : 'Upload'}
                           </Button>
                         </div>
                         <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                          <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground mb-2">Back Side</p>
-                          <Button variant="outline" size="sm">
+                          {profile.aadhar_back_url ? (
+                            <div className="space-y-2">
+                              <Check className="h-8 w-8 mx-auto text-green-500" />
+                              <p className="text-sm text-green-600">Back Side uploaded</p>
+                              <a href={getImageUrl(profile.aadhar_back_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View</a>
+                            </div>
+                          ) : (
+                            <>
+                              <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground mb-2">Back Side</p>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            id="aadhar-back-upload"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => handleDocumentUpload(e, 'aadhar_back', 'aadhar_back_url')}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={uploadingDoc === 'aadhar_back'}
+                            onClick={() => document.getElementById('aadhar-back-upload')?.click()}
+                          >
                             <Upload className="h-4 w-4 mr-2" />
-                            Upload
+                            {uploadingDoc === 'aadhar_back' ? 'Uploading...' : 'Upload'}
                           </Button>
                         </div>
                       </div>
@@ -509,105 +816,38 @@ const Profile = () => {
                     <div className="space-y-2">
                       <Label>College/Company ID</Label>
                       <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">Upload ID Proof</p>
-                        <Button variant="outline" size="sm">
+                        {profile.college_company_id_url ? (
+                          <div className="space-y-2">
+                            <Check className="h-8 w-8 mx-auto text-green-500" />
+                            <p className="text-sm text-green-600">ID Proof uploaded</p>
+                            <a href={getImageUrl(profile.college_company_id_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View</a>
+                          </div>
+                        ) : (
+                          <>
+                            <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mb-2">Upload ID Proof</p>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          id="college-id-upload"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => handleDocumentUpload(e, 'college_company_id', 'college_company_id_url')}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingDoc === 'college_company_id'}
+                          onClick={() => document.getElementById('college-id-upload')?.click()}
+                        >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload
+                          {uploadingDoc === 'college_company_id' ? 'Uploading...' : 'Upload'}
                         </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
-
-              {isCustomer && (
-                <>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Emergency Contact Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="emergency_contact_name">Parent/Guardian Name</Label>
-                        <Input
-                          id="emergency_contact_name"
-                          value={profile.emergency_contact_name}
-                          onChange={(e) => setProfile({ ...profile, emergency_contact_name: e.target.value })}
-                          placeholder="Enter parent or guardian name"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="emergency_contact_phone">Emergency Contact Number</Label>
-                        <Input
-                          id="emergency_contact_phone"
-                          value={profile.emergency_contact_phone}
-                          onChange={(e) => setProfile({ ...profile, emergency_contact_phone: e.target.value })}
-                          placeholder="+91 98765 43210"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="emergency_contact_address">Emergency Contact Address</Label>
-                        <Textarea
-                          id="emergency_contact_address"
-                          value={profile.emergency_contact_address}
-                          onChange={(e) => setProfile({ ...profile, emergency_contact_address: e.target.value })}
-                          placeholder="Enter emergency contact address"
-                          rows={3}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Work & Language Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="work_type">Type of Work</Label>
-                        <Input
-                          id="work_type"
-                          value={profile.work_type}
-                          onChange={(e) => setProfile({ ...profile, work_type: e.target.value })}
-                          placeholder="Student/Working Professional/Business etc."
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="work_place">Work Place</Label>
-                        <Input
-                          id="work_place"
-                          value={profile.work_place}
-                          onChange={(e) => setProfile({ ...profile, work_place: e.target.value })}
-                          placeholder="Company/College name and location"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="mother_tongue">Mother Tongue</Label>
-                        <Input
-                          id="mother_tongue"
-                          value={profile.mother_tongue}
-                          onChange={(e) => setProfile({ ...profile, mother_tongue: e.target.value })}
-                          placeholder="Your native language"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="languages_known">Languages Known</Label>
-                        <Input
-                          id="languages_known"
-                          value={profile.languages_known?.join(', ')}
-                          onChange={(e) => setProfile({ ...profile, languages_known: e.target.value.split(',').map(lang => lang.trim()).filter(Boolean) })}
-                          placeholder="English, Hindi, Tamil (comma separated)"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
               )}
 
               {isOwner && (
@@ -619,11 +859,33 @@ const Profile = () => {
                     <div className="space-y-2">
                       <Label>PAN Card</Label>
                       <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">Upload PAN Card</p>
-                        <Button variant="outline" size="sm">
+                        {profile.pan_card_url ? (
+                          <div className="space-y-2">
+                            <Check className="h-8 w-8 mx-auto text-green-500" />
+                            <p className="text-sm text-green-600">PAN Card uploaded</p>
+                            <a href={getImageUrl(profile.pan_card_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View Document</a>
+                          </div>
+                        ) : (
+                          <>
+                            <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mb-2">Upload PAN Card</p>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          id="pan-upload"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => handleDocumentUpload(e, 'pan_card', 'pan_card_url')}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingDoc === 'pan_card'}
+                          onClick={() => document.getElementById('pan-upload')?.click()}
+                        >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload
+                          {uploadingDoc === 'pan_card' ? 'Uploading...' : 'Upload'}
                         </Button>
                       </div>
                     </div>
@@ -631,20 +893,54 @@ const Profile = () => {
                     <div className="space-y-2">
                       <Label>GST Certificate (Optional)</Label>
                       <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-2">Upload GST Document</p>
-                        <Button variant="outline" size="sm">
+                        {profile.gst_doc_url ? (
+                          <div className="space-y-2">
+                            <Check className="h-8 w-8 mx-auto text-green-500" />
+                            <p className="text-sm text-green-600">GST Certificate uploaded</p>
+                            <a href={getImageUrl(profile.gst_doc_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View Document</a>
+                          </div>
+                        ) : (
+                          <>
+                            <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mb-2">Upload GST Document</p>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          id="gst-upload"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => handleDocumentUpload(e, 'gst_doc', 'gst_doc_url')}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingDoc === 'gst_doc'}
+                          onClick={() => document.getElementById('gst-upload')?.click()}
+                        >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload
+                          {uploadingDoc === 'gst_doc' ? 'Uploading...' : 'Upload'}
                         </Button>
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label>Bank Account Details</Label>
-                      <Input placeholder="Account Number" />
-                      <Input placeholder="IFSC Code" />
-                      <Input placeholder="Bank Name" />
+                      <Input
+                        placeholder="Account Number"
+                        value={profile.bank_account_number}
+                        onChange={(e) => setProfile({ ...profile, bank_account_number: e.target.value })}
+                      />
+                      <Input
+                        placeholder="IFSC Code"
+                        value={profile.bank_ifsc_code}
+                        onChange={(e) => setProfile({ ...profile, bank_ifsc_code: e.target.value })}
+                      />
+                      <Input
+                        placeholder="Bank Name"
+                        value={profile.bank_name}
+                        onChange={(e) => setProfile({ ...profile, bank_name: e.target.value })}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -660,19 +956,67 @@ const Profile = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="current_password">Current Password</Label>
-                    <Input id="current_password" type="password" />
+                    <div className="relative">
+                      <Input
+                        id="current_password"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="new_password">New Password</Label>
-                    <Input id="new_password" type="password" />
+                    <div className="relative">
+                      <Input
+                        id="new_password"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 8 characters)"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <Input id="confirm_password" type="password" />
+                    <div className="relative">
+                      <Input
+                        id="confirm_password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
-                  <Button>
+                  <Button onClick={handleChangePassword} disabled={changingPassword}>
                     <Lock className="h-4 w-4 mr-2" />
-                    Update Password
+                    {changingPassword ? 'Updating...' : 'Update Password'}
                   </Button>
                 </CardContent>
               </Card>
@@ -690,21 +1034,36 @@ const Profile = () => {
                       <p className="font-medium">Email Notifications</p>
                       <p className="text-sm text-muted-foreground">Receive updates via email</p>
                     </div>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={emailNotifications}
+                      onChange={(e) => setEmailNotifications(e.target.checked)}
+                      className="h-5 w-5 cursor-pointer"
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">SMS Notifications</p>
                       <p className="text-sm text-muted-foreground">Receive updates via SMS</p>
                     </div>
-                    <input type="checkbox" defaultChecked />
+                    <input
+                      type="checkbox"
+                      checked={smsNotifications}
+                      onChange={(e) => setSmsNotifications(e.target.checked)}
+                      className="h-5 w-5 cursor-pointer"
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Push Notifications</p>
                       <p className="text-sm text-muted-foreground">Receive push notifications</p>
                     </div>
-                    <input type="checkbox" />
+                    <input
+                      type="checkbox"
+                      checked={pushNotifications}
+                      onChange={(e) => setPushNotifications(e.target.checked)}
+                      className="h-5 w-5 cursor-pointer"
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -720,7 +1079,12 @@ const Profile = () => {
                         <p className="font-medium">Hide Contact Information</p>
                         <p className="text-sm text-muted-foreground">Don't show contact to other tenants</p>
                       </div>
-                      <input type="checkbox" />
+                      <input
+                        type="checkbox"
+                        checked={hideContactInfo}
+                        onChange={(e) => setHideContactInfo(e.target.checked)}
+                        className="h-5 w-5 cursor-pointer"
+                      />
                     </div>
                   </CardContent>
                 </Card>

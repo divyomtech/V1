@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, Property } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
-import { useFavorites } from '@/hooks/useFavorites';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,7 +14,7 @@ const Favorites = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { favorites, toggleFavorite } = useFavorites(user?.id);
+  const { favorites, toggleFavorite, loading: favoritesLoading } = useFavorites();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,8 +23,11 @@ const Favorites = () => {
       navigate('/auth');
       return;
     }
-    fetchFavoriteProperties();
-  }, [user, favorites]);
+    // Wait for favorites to load before fetching properties
+    if (!favoritesLoading) {
+      fetchFavoriteProperties();
+    }
+  }, [user, favorites, favoritesLoading]);
 
   const fetchFavoriteProperties = async () => {
     if (favorites.size === 0) {

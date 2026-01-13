@@ -138,6 +138,11 @@ export const api = {
         });
     },
 
+    // Cities
+    async getCities(): Promise<{ id: string; name: string; image_url: string | null; areas: { id: string; name: string }[] }[]> {
+        return request('/api/cities');
+    },
+
     // Properties
     async getProperties(filters?: {
         city?: string;
@@ -183,9 +188,8 @@ export const api = {
     },
 
     async addFavorite(propertyId: string): Promise<Favorite> {
-        return request<Favorite>('/api/favorites', {
+        return request<Favorite>(`/api/favorites/${propertyId}`, {
             method: 'POST',
-            body: JSON.stringify({ property_id: propertyId }),
         });
     },
 
@@ -279,6 +283,40 @@ export const api = {
         });
     },
 
+    async uploadDocument(file: File, documentType: string = 'general'): Promise<{
+        message: string;
+        url: string;
+        filename: string;
+        document_type: string;
+    }> {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('document_type', documentType);
+
+        const token = getToken();
+        const response = await fetch(`${API_URL}/api/users/upload-document`, {
+            method: 'POST',
+            headers: {
+                ...(token && { Authorization: `Bearer ${token}` }),
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+            throw new Error(error.detail || `HTTP ${response.status}`);
+        }
+
+        return response.json();
+    },
+
+    async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+        return request('/api/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+        });
+    },
+
     // ========== Admin APIs ==========
 
     // Audit Logs
@@ -318,11 +356,6 @@ export const api = {
             method: 'PUT',
             body: JSON.stringify({ role }),
         });
-    },
-
-    // Audit Logs
-    async getAuditLogs(limit: number = 50): Promise<any[]> {
-        return request(`/api/admin/audit-logs?limit=${limit}`);
     },
 
     // System Settings
@@ -395,6 +428,12 @@ export const api = {
         languages?: string[];
         hobbies?: string[];
         bio?: string;
+        dietary_preference?: string;
+        smoking?: boolean;
+        drinking?: boolean;
+        pets_allowed?: boolean;
+        cleanliness_level?: number;
+        is_active?: boolean;
     }): Promise<any> {
         return request('/api/roommates/profile', {
             method: 'POST',

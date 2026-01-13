@@ -40,6 +40,20 @@ const Search = () => {
   const [dateTo, setDateTo] = useState<Date>();
   const [sortBy, setSortBy] = useState<'price_low' | 'price_high' | 'newest'>('newest');
   const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
+  const [selectedCity, setSelectedCity] = useState('all');
+  const [selectedLocality, setSelectedLocality] = useState('all');
+
+  // City-Locality drill-down data
+  const cityLocalities: Record<string, string[]> = {
+    'Bangalore': ['Koramangala', 'HSR Layout', 'Indiranagar', 'Whitefield', 'Electronic City', 'BTM Layout', 'Marathahalli', 'JP Nagar'],
+    'Hyderabad': ['Gachibowli', 'Madhapur', 'Kondapur', 'Hitech City', 'Kukatpally', 'Banjara Hills', 'Jubilee Hills', 'Begumpet'],
+    'Mumbai': ['Andheri', 'Powai', 'Bandra', 'Malad', 'Goregaon', 'Lower Parel', 'Worli', 'Thane'],
+    'Delhi': ['Lajpat Nagar', 'Saket', 'Hauz Khas', 'Dwarka', 'Noida', 'Gurgaon', 'Rohini', 'Karol Bagh'],
+    'Chennai': ['Adyar', 'Velachery', 'OMR', 'T Nagar', 'Anna Nagar', 'Porur', 'Guindy', 'Thoraipakkam'],
+    'Pune': ['Hinjewadi', 'Kothrud', 'Wakad', 'Baner', 'Viman Nagar', 'Koregaon Park', 'Hadapsar', 'Magarpatta'],
+  };
+
+  const cities = ['all', ...Object.keys(cityLocalities)];
 
   useEffect(() => {
     fetchProperties();
@@ -108,6 +122,12 @@ const Search = () => {
       prop.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prop.locality?.toLowerCase().includes(searchTerm.toLowerCase());
 
+    const matchesCity = selectedCity === 'all' ||
+      prop.city.toLowerCase() === selectedCity.toLowerCase();
+
+    const matchesLocality = selectedLocality === 'all' ||
+      prop.locality?.toLowerCase().includes(selectedLocality.toLowerCase());
+
     const matchesPrice =
       prop.monthly_rent >= priceRange[0] && prop.monthly_rent <= priceRange[1];
 
@@ -117,7 +137,7 @@ const Search = () => {
 
     const matchesDate = !dateFrom || (prop.available_from && new Date(prop.available_from) >= dateFrom);
 
-    return matchesSearch && matchesPrice && matchesAmenities && matchesDate;
+    return matchesSearch && matchesCity && matchesLocality && matchesPrice && matchesAmenities && matchesDate;
   }).sort((a, b) => {
     if (sortBy === 'price_low') return a.monthly_rent - b.monthly_rent;
     if (sortBy === 'price_high') return b.monthly_rent - a.monthly_rent;
@@ -187,6 +207,35 @@ const Search = () => {
                   <SelectItem value="unisex">Co-living</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={selectedCity} onValueChange={(value) => {
+                setSelectedCity(value);
+                setSelectedLocality('all'); // Reset locality when city changes
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select City" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Cities</SelectItem>
+                  {Object.keys(cityLocalities).map(city => (
+                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedCity !== 'all' && cityLocalities[selectedCity] && (
+                <Select value={selectedLocality} onValueChange={setSelectedLocality}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Areas in {selectedCity}</SelectItem>
+                    {cityLocalities[selectedCity].map(locality => (
+                      <SelectItem key={locality} value={locality}>{locality}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               <Popover>
                 <PopoverTrigger asChild>
@@ -302,6 +351,8 @@ const Search = () => {
               <Button onClick={() => {
                 setSearchTerm('');
                 setGenderFilter('all');
+                setSelectedCity('all');
+                setSelectedLocality('all');
                 setPriceRange([0, 50000]);
                 setSelectedAmenities([]);
                 setDateFrom(undefined);

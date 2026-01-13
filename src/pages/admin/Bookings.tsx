@@ -68,10 +68,15 @@ const AdminBookings = () => {
             }
 
             setBookings(allBookings);
+
+            // Only count revenue from PAID bookings (not accepted since payment is still pending)
+            const paidStatuses = ['paid', 'active', 'completed', 'checked_in'];
+            const confirmedBookings = allBookings.filter(b => paidStatuses.includes(b.status));
+
             setStats({
                 totalBookings: adminStats.total_bookings || allBookings.length,
                 activeBookings: allBookings.filter(b => b.status === 'active' || b.status === 'paid').length,
-                totalRevenue: allBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0),
+                totalRevenue: confirmedBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0),
                 pendingPayments: allBookings.filter(b => b.status === 'pending' || b.status === 'requested').length,
             });
         } catch (error: any) {
@@ -190,7 +195,7 @@ const AdminBookings = () => {
                                                         Customer: {booking.customer_name || 'Unknown'} | Owner: {booking.owner_name || 'Unknown'}
                                                     </p>
                                                     <p className="text-sm text-muted-foreground">
-                                                        {new Date(booking.start_date).toLocaleDateString()} - {new Date(booking.end_date).toLocaleDateString()}
+                                                        {booking.start_date ? new Date(booking.start_date).toLocaleDateString() : 'N/A'} - {booking.end_date ? new Date(booking.end_date).toLocaleDateString() : 'Ongoing'}
                                                     </p>
                                                 </div>
                                                 <div className="text-right">

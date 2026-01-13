@@ -58,24 +58,33 @@ const Finances = () => {
     }, [user, role]);
 
     const fetchFinancialData = async () => {
+        // Fetch each API separately to handle partial failures
+        let summaryData = null;
+        let paymentsData: Payment[] = [];
+        let invoicesData: Invoice[] = [];
+
         try {
-            const [summaryData, paymentsData, invoicesData] = await Promise.all([
-                api.getOwnerFinancialSummary(),
-                api.getOwnerPayments(),
-                api.getOwnerInvoices(),
-            ]);
-            setSummary(summaryData);
-            setPayments(paymentsData);
-            setInvoices(invoicesData);
-        } catch (error: any) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to load financial data",
-            });
-        } finally {
-            setLoading(false);
+            summaryData = await api.getOwnerFinancialSummary();
+        } catch (e) {
+            console.error('Failed to load financial summary:', e);
         }
+
+        try {
+            paymentsData = await api.getOwnerPayments();
+        } catch (e) {
+            console.error('Failed to load payments:', e);
+        }
+
+        try {
+            invoicesData = await api.getOwnerInvoices();
+        } catch (e) {
+            console.error('Failed to load invoices:', e);
+        }
+
+        setSummary(summaryData);
+        setPayments(paymentsData);
+        setInvoices(invoicesData);
+        setLoading(false);
     };
 
     if (loading) {

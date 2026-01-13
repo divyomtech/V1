@@ -19,33 +19,21 @@ import delhiImg from "@/assets/cities/delhi.jpg";
 import chennaiImg from "@/assets/cities/chennai.jpg";
 import heroBg from "@/assets/hero-bg.jpg";
 
-const cities = [
-  {
-    name: "Bangalore",
-    areas: ["Koramangala", "HSR Layout", "Indiranagar", "Whitefield", "Electronic City", "BTM Layout"],
-    image: bangaloreImg
-  },
-  {
-    name: "Hyderabad",
-    areas: ["HITEC City", "Gachibowli", "Madhapur", "Banjara Hills", "Kondapur", "Kukatpally"],
-    image: hyderabadImg
-  },
-  {
-    name: "Mumbai",
-    areas: ["Andheri", "Powai", "Borivali", "Thane", "Bandra", "Goregaon"],
-    image: mumbaiImg
-  },
-  {
-    name: "Delhi",
-    areas: ["Connaught Place", "Dwarka", "Rohini", "Saket", "Lajpat Nagar", "Karol Bagh"],
-    image: delhiImg
-  },
-  {
-    name: "Chennai",
-    areas: ["OMR", "Anna Nagar", "T Nagar", "Velachery", "Tambaram", "Adyar"],
-    image: chennaiImg
-  }
-];
+// Default city images mapping
+const cityImages: Record<string, string> = {
+  Bangalore: bangaloreImg,
+  Hyderabad: hyderabadImg,
+  Mumbai: mumbaiImg,
+  Delhi: delhiImg,
+  Chennai: chennaiImg,
+};
+
+interface CityData {
+  id: string;
+  name: string;
+  image_url: string | null;
+  areas: { id: string; name: string }[];
+}
 
 const CustomerDashboard = () => {
   const { user } = useAuth();
@@ -63,17 +51,30 @@ const CustomerDashboard = () => {
   const [stats, setStats] = useState({ activeBookings: 0, savedProperties: 0, referralRewards: 0 });
   const { favorites, toggleFavorite } = useFavorites(user?.id);
 
+  // Cities loaded from API
+  const [cities, setCities] = useState<CityData[]>([]);
+
   const isActive = (path: string) => location.pathname === path;
 
   const selectedCityData = cities.find(c => c.name === selectedCity);
 
   useEffect(() => {
+    fetchCities();
     if (user) {
       fetchDashboardData();
       fetchFeaturedProperties();
       fetchStats();
     }
   }, [user]);
+
+  const fetchCities = async () => {
+    try {
+      const data = await api.getCities();
+      setCities(data);
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -256,15 +257,19 @@ const CustomerDashboard = () => {
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {cities.map((city) => (
                 <button
-                  key={city.name}
+                  key={city.id || city.name}
                   onClick={() => handleCityClick(city.name)}
                   className="flex flex-col items-center gap-2 flex-shrink-0"
                 >
                   <div className={`w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center transition-all shadow-md ${selectedCity === city.name
-                      ? 'ring-4 ring-primary scale-105'
-                      : 'hover:ring-4 hover:ring-accent/50 hover:scale-105'
+                    ? 'ring-4 ring-primary scale-105'
+                    : 'hover:ring-4 hover:ring-accent/50 hover:scale-105'
                     }`}>
-                    <img src={city.image} alt={city.name} className="w-full h-full object-cover" />
+                    <img
+                      src={city.image_url || cityImages[city.name] || bangaloreImg}
+                      alt={city.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <span className="text-sm font-semibold">{city.name}</span>
                 </button>
@@ -307,14 +312,14 @@ const CustomerDashboard = () => {
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 {selectedCityData.areas.map((area) => (
                   <button
-                    key={area}
-                    onClick={() => handleAreaClick(area)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 transition-all ${selectedArea === area
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-background text-foreground hover:bg-muted'
+                    key={area.id || area.name}
+                    onClick={() => handleAreaClick(area.name)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 transition-all ${selectedArea === area.name
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background text-foreground hover:bg-muted'
                       }`}
                   >
-                    {area}
+                    {area.name}
                   </button>
                 ))}
                 <button
@@ -589,17 +594,17 @@ const CustomerDashboard = () => {
                               <Home className="h-6 w-6 text-primary" />
                             </div>
                             <div>
-                              <h4 className="font-semibold">{booking.properties?.title}</h4>
+                              <h4 className="font-semibold">{booking.property?.title || 'Unknown Property'}</h4>
                               <p className="text-sm text-muted-foreground flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
-                                {booking.properties?.city}
+                                {booking.property?.city || 'Unknown Location'}
                               </p>
                             </div>
                           </div>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${booking.status === 'requested' ? 'bg-accent text-accent-foreground' :
-                              booking.status === 'accepted' ? 'bg-primary/10 text-primary' :
-                                booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
-                                  'bg-muted text-muted-foreground'
+                            booking.status === 'accepted' ? 'bg-primary/10 text-primary' :
+                              booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+                                'bg-muted text-muted-foreground'
                             }`}>
                             {booking.status}
                           </span>
@@ -613,70 +618,6 @@ const CustomerDashboard = () => {
           )}
         </div>
       </main>
-
-      {/* Bottom Navigation - Instagram Style */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-primary/15 border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <div className="flex items-center justify-around h-16 max-w-screen-sm mx-auto">
-          <button
-            onClick={() => navigate('/')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
-          >
-            <Home
-              className={`h-6 w-6 transition-colors ${isActive('/') ? 'text-primary' : 'text-muted-foreground'}`}
-              fill={isActive('/') ? 'currentColor' : 'none'}
-            />
-            {isActive('/') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
-          </button>
-
-          <button
-            onClick={() => navigate('/search')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
-          >
-            <Search
-              className={`h-6 w-6 transition-colors ${isActive('/search') ? 'text-primary' : 'text-muted-foreground'}`}
-            />
-            {isActive('/search') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
-          </button>
-
-          <button
-            onClick={() => navigate('/favorites')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
-          >
-            <Heart
-              className={`h-6 w-6 transition-colors ${isActive('/favorites') ? 'text-primary' : 'text-muted-foreground'}`}
-              fill={isActive('/favorites') ? 'currentColor' : 'none'}
-            />
-            {stats.savedProperties > 0 && (
-              <Badge className="absolute -top-1 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                {stats.savedProperties}
-              </Badge>
-            )}
-            {isActive('/favorites') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
-          </button>
-
-          <button
-            onClick={() => navigate('/bookings')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
-          >
-            <Calendar
-              className={`h-6 w-6 transition-colors ${isActive('/bookings') ? 'text-primary' : 'text-muted-foreground'}`}
-              fill={isActive('/bookings') ? 'currentColor' : 'none'}
-            />
-            {isActive('/bookings') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
-          </button>
-
-          <button
-            onClick={() => navigate('/profile')}
-            className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
-          >
-            <User
-              className={`h-6 w-6 transition-colors ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
-              fill={isActive('/profile') ? 'currentColor' : 'none'}
-            />
-            {isActive('/profile') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
-          </button>
-        </div>
-      </nav>
     </div>
   );
 };

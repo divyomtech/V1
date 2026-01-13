@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 import { z } from 'zod';
 
 // Property validation schema
@@ -50,6 +51,9 @@ const AddProperty = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
+  const [customAmenityInput, setCustomAmenityInput] = useState('');
+  const [isAmenityDialogOpen, setIsAmenityDialogOpen] = useState(false);
+  const [customAmenitiesList, setCustomAmenitiesList] = useState<{ id: string, label: string }[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -112,6 +116,27 @@ const AddProperty = () => {
     } else {
       handleChange('amenities', [...current, amenityId]);
     }
+  };
+
+  const addCustomAmenity = () => {
+    const trimmed = customAmenityInput.trim();
+    const id = trimmed.toLowerCase().replace(/\s+/g, '_');
+
+    // Check if already exists in predefined or custom list
+    const allIds = [...AMENITIES.map(a => a.id), ...customAmenitiesList.map(a => a.id)];
+    if (trimmed && !allIds.includes(id)) {
+      // Add to custom amenities list (permanent)
+      setCustomAmenitiesList(prev => [...prev, { id, label: trimmed }]);
+      // Also select it by default
+      handleChange('amenities', [...formData.amenities, id]);
+      setCustomAmenityInput('');
+      setIsAmenityDialogOpen(false);
+    }
+  };
+
+  // Get all available amenities (predefined + custom)
+  const getAllAmenities = () => {
+    return [...AMENITIES, ...customAmenitiesList];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -350,12 +375,59 @@ const AddProperty = () => {
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Amenities</CardTitle>
+                <Dialog open={isAmenityDialogOpen} onOpenChange={setIsAmenityDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="gap-1">
+                      <Plus className="h-4 w-4" />
+                      Add
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add Custom Amenity</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-amenity">Amenity Name</Label>
+                        <Input
+                          id="custom-amenity"
+                          placeholder="e.g., Gym, Swimming Pool, TV"
+                          value={customAmenityInput}
+                          onChange={(e) => setCustomAmenityInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addCustomAmenity();
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsAmenityDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={addCustomAmenity}
+                          disabled={!customAmenityInput.trim()}
+                        >
+                          Add Amenity
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-3 gap-4">
-                  {AMENITIES.map((amenity) => (
+                  {/* All amenities (predefined + custom) */}
+                  {getAllAmenities().map((amenity) => (
                     <div key={amenity.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={amenity.id}
