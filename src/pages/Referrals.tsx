@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Gift, Copy, Check, Users, IndianRupee, Loader2 } from 'lucide-react';
+import { Gift, Copy, Check, Users, IndianRupee, Loader2, Share2 } from 'lucide-react';
 
 interface Referral {
   id: string;
@@ -72,6 +72,37 @@ const Referrals = () => {
       description: 'Referral link copied to clipboard',
     });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareReferralLink = async () => {
+    const link = `${window.location.origin}/auth?ref=${myReferralCode}`;
+    const shareData = {
+      title: 'He&She PG - Referral',
+      text: 'Join He&She PG using my referral link and get great PG accommodations! When you book your first PG, I earn ₹500!',
+      url: link,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({
+          title: 'Shared!',
+          description: 'Referral link shared successfully',
+        });
+      } else {
+        // Fallback to copy if Web Share API is not supported
+        copyReferralLink();
+      }
+    } catch (error: any) {
+      // User cancelled sharing or error occurred
+      if (error.name !== 'AbortError') {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to share referral link',
+        });
+      }
+    }
   };
 
   const claimRewards = async () => {
@@ -162,8 +193,12 @@ const Referrals = () => {
                     readOnly
                     className="flex-1 px-3 py-2 border rounded-md text-sm bg-muted"
                   />
-                  <Button onClick={copyReferralLink} variant="outline">
+                  <Button onClick={copyReferralLink} variant="outline" title="Copy link">
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                  <Button onClick={shareReferralLink} title="Share link">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">

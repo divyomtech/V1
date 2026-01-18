@@ -57,13 +57,28 @@ const Search = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, [genderFilter]);
+  }, [genderFilter, selectedCity, priceRange, selectedAmenities, sortBy]);
 
   const fetchProperties = async () => {
     try {
       const filters: any = {};
       if (genderFilter !== 'all') {
         filters.gender_preference = genderFilter;
+      }
+      if (selectedCity !== 'all') {
+        filters.city = selectedCity;
+      }
+      if (priceRange[0] > 0) {
+        filters.min_rent = priceRange[0];
+      }
+      if (priceRange[1] < 50000) {
+        filters.max_rent = priceRange[1];
+      }
+      if (selectedAmenities.length > 0) {
+        filters.amenities = selectedAmenities.join(',');
+      }
+      if (sortBy !== 'newest') {
+        filters.sort_by = sortBy;
       }
 
       const data = await api.getProperties(filters);
@@ -116,32 +131,22 @@ const Search = () => {
     return (sum / propertyReviews.length).toFixed(1);
   };
 
+  // Client-side filtering only for text search and locality (backend handles city, price, amenities, sort)
   const filteredProperties = properties.filter((prop) => {
-    const matchesSearch =
+    // Text search (not supported by backend) - searches title, city, locality
+    const matchesSearch = !searchTerm ||
       prop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prop.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prop.locality?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCity = selectedCity === 'all' ||
-      prop.city.toLowerCase() === selectedCity.toLowerCase();
-
+    // Locality filter (backend only supports city-level filtering)
     const matchesLocality = selectedLocality === 'all' ||
       prop.locality?.toLowerCase().includes(selectedLocality.toLowerCase());
 
-    const matchesPrice =
-      prop.monthly_rent >= priceRange[0] && prop.monthly_rent <= priceRange[1];
-
-    const matchesAmenities =
-      selectedAmenities.length === 0 ||
-      selectedAmenities.every(amenity => prop.amenities?.includes(amenity));
-
+    // Date filter (not yet supported by backend)
     const matchesDate = !dateFrom || (prop.available_from && new Date(prop.available_from) >= dateFrom);
 
-    return matchesSearch && matchesCity && matchesLocality && matchesPrice && matchesAmenities && matchesDate;
-  }).sort((a, b) => {
-    if (sortBy === 'price_low') return a.monthly_rent - b.monthly_rent;
-    if (sortBy === 'price_high') return b.monthly_rent - a.monthly_rent;
-    return 0; // newest - already sorted by default
+    return matchesSearch && matchesLocality && matchesDate;
   });
 
   const toggleCompare = (propertyId: string) => {
