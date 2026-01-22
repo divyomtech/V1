@@ -36,10 +36,9 @@ interface CityData {
 }
 
 const CustomerDashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [profile, setProfile] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);

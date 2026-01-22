@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "./ui/button";
-import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart, Gift } from "lucide-react";
+import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart, Gift, Wallet } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { NotificationBell } from "./NotificationBell";
@@ -19,6 +19,7 @@ const Header = () => {
       { label: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
       { label: 'My Properties', href: '/owner/properties', icon: Building2 },
       { label: 'Bookings', href: '/owner/bookings', icon: Building2 },
+      { label: 'Wallet', href: '/owner/wallet', icon: Wallet },
     ];
     if (role === 'admin') return [{ label: 'Admin Dashboard', href: '/admin', icon: LayoutDashboard }];
     return [
@@ -54,8 +55,8 @@ const Header = () => {
                     key={item.href}
                     to={item.href}
                     className={`text-sm font-medium transition-colors flex items-center gap-2 pb-1 border-b-2 ${isActive
-                        ? 'text-primary border-primary'
-                        : 'hover:text-primary border-transparent'
+                      ? 'text-primary border-primary'
+                      : 'hover:text-primary border-transparent'
                       }`}
                   >
                     <item.icon className="h-4 w-4" />

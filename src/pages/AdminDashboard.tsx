@@ -91,7 +91,7 @@ const AdminDashboard = () => {
         const logs = await api.getAuditLogs(10);
         setAuditLogs(logs);
       } catch (e) {
-        console.log('Audit logs not available');
+        // Audit logs endpoint not available
       }
 
       // Fetch all users for User Management
@@ -106,7 +106,7 @@ const AdminDashboard = () => {
           created_at: u.created_at,
         })));
       } catch (e) {
-        console.log('Users list not available');
+        // Users list endpoint not available
       }
 
     } catch (error: any) {

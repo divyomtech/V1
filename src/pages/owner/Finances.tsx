@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { IndianRupee, TrendingUp, Clock, Home, Users, Loader2 } from 'lucide-react';
+import { IndianRupee, TrendingUp, Clock, Users, Loader2 } from 'lucide-react';
 
 interface Payment {
     id: string;
@@ -58,7 +58,6 @@ const Finances = () => {
     }, [user, role]);
 
     const fetchFinancialData = async () => {
-        // Fetch each API separately to handle partial failures
         let summaryData = null;
         let paymentsData: Payment[] = [];
         let invoicesData: Invoice[] = [];

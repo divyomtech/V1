@@ -123,7 +123,7 @@ const Referrals = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <Header />
       <div className="container py-8">
         <div className="max-w-4xl mx-auto">

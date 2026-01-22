@@ -64,7 +64,7 @@ const AdminBookings = () => {
                 const response = await api.getAllBookings();
                 allBookings = response;
             } catch (e) {
-                console.log('Using fallback booking data');
+                // Using fallback booking data
             }
 
             setBookings(allBookings);

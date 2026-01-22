@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { api } from '@/lib/api';
 
 interface Notification {
   id: string;
@@ -24,27 +25,50 @@ interface Notification {
 export const NotificationBell = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) {
-      // Notifications API not implemented yet - placeholder
-      setNotifications([]);
-      setUnreadCount(0);
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const data = await api.getNotifications();
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.read).length);
+    } catch (error) {
+      // Silently fail - notifications are not critical
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
-  const markAsRead = (id: string) => {
-    // Mark as read locally
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, read: true } : n
-    ));
-    setUnreadCount(Math.max(0, unreadCount - 1));
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      // Refresh notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchNotifications]);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await api.markNotificationRead(id);
+      setNotifications(notifications.map(n =>
+        n.id === id ? { ...n, read: true } : n
+      ));
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    } catch (error) {
+      // Silent fail
+    }
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    markAsRead(notification.id);
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
     if (notification.link) {
       navigate(notification.link);
     }

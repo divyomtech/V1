@@ -54,7 +54,7 @@ const Favorites = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-24">
         <Header />
         <div className="container py-8">
           <div className="text-center">Loading your favorites...</div>
@@ -64,7 +64,7 @@ const Favorites = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <Header />
       <div className="container py-8">
         <div className="max-w-6xl mx-auto">

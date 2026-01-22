@@ -21,6 +21,7 @@ import AddProperty from "./pages/owner/AddProperty";
 import OwnerBookings from "./pages/owner/Bookings";
 import OwnerTenants from "./pages/owner/Tenants";
 import OwnerFinances from "./pages/owner/Finances";
+import OwnerWallet from "./pages/owner/Wallet";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminBookings from "./pages/admin/Bookings";
@@ -116,6 +117,11 @@ const App = () => (
               <Route path="/owner/dashboard" element={
                 <ProtectedRoute requiredRole="owner">
                   <OwnerDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/owner/wallet" element={
+                <ProtectedRoute requiredRole="owner">
+                  <OwnerWallet />
                 </ProtectedRoute>
               } />
               <Route path="/admin" element={

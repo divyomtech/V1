@@ -9,18 +9,21 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import welcomeIllustration from '@/assets/welcome-illustration.png';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Eye, EyeOff } from 'lucide-react';
 
 const authSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits').max(15, 'Phone number too long').optional(),
 });
 
 const Auth = () => {
-  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password' | 'verify-otp' | 'reset-password'>('welcome');
+  const [view, setView] = useState<'welcome' | 'login' | 'signup' | 'forgot-password' | 'verify-otp' | 'reset-password' | 'verify-email-otp'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [signupRole, setSignupRole] = useState<'customer' | 'owner' | 'admin'>('customer');
   const [loginMode, setLoginMode] = useState<'user' | 'owner' | 'admin'>('user');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -29,7 +32,14 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpPhone, setOtpPhone] = useState('');
-  const { signUp, signIn, signOut, resetPassword, user, loading, role } = useAuth();
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingRole, setPendingRole] = useState<'customer' | 'owner' | 'admin'>('customer');
+  const [canResendOtp, setCanResendOtp] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(30);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { signUp, verifyEmail, resendOtp, signIn, signOut, resetPassword, user, loading, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -51,8 +61,20 @@ const Auth = () => {
     }
   }, []);
 
+  // Countdown timer for OTP resend button
   useEffect(() => {
-    if (user && !loading && view !== 'reset-password' && view !== 'verify-otp') {
+    if (view === 'verify-email-otp' && !canResendOtp && resendCountdown > 0) {
+      const timer = setTimeout(() => {
+        setResendCountdown(resendCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (view === 'verify-email-otp' && resendCountdown === 0) {
+      setCanResendOtp(true);
+    }
+  }, [view, canResendOtp, resendCountdown]);
+
+  useEffect(() => {
+    if (user && !loading && view !== 'reset-password' && view !== 'verify-otp' && view !== 'verify-email-otp') {
       // Validate role matches the selected login mode
       if (loginMode === 'admin') {
         // Admin login mode - require admin role
@@ -99,7 +121,17 @@ const Auth = () => {
 
   const validateForm = () => {
     try {
-      authSchema.parse({ email, password, name: view === 'signup' ? name : undefined });
+      authSchema.parse({
+        email,
+        password,
+        name: view === 'signup' ? name : undefined,
+        phone: view === 'signup' ? phone : undefined
+      });
+      // Additional phone validation for signup
+      if (view === 'signup' && (!phone || phone.length < 10)) {
+        setErrors({ phone: 'Phone number is required (at least 10 digits)' });
+        return false;
+      }
       setErrors({});
       return true;
     } catch (error) {
@@ -131,7 +163,17 @@ const Auth = () => {
         // We'll validate in useEffect after role is updated
       }
     } else {
-      await signUp(email, password, name, signupRole);
+      const result = await signUp(email, password, name, phone, signupRole);
+
+      // Check if email verification is required
+      if (!result.error && result.requiresVerification && result.email) {
+        setPendingEmail(result.email);
+        setPendingRole(result.role || signupRole);
+        setOtpCode('');
+        setView('verify-email-otp');
+        setCanResendOtp(false);
+        setResendCountdown(30);
+      }
     }
   };
 
@@ -359,13 +401,22 @@ const Auth = () => {
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
 
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="h-12 text-base"
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="h-12 text-base pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
               {errors.login && <p className="text-sm text-destructive mt-2 text-center font-medium">{errors.login}</p>}
             </div>
@@ -509,6 +560,113 @@ const Auth = () => {
     );
   }
 
+  // Verify Email OTP Screen (signup flow)
+  if (view === 'verify-email-otp') {
+    const handleVerifyEmailOtp = async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (otpCode.length !== 6) {
+        toast({
+          variant: "destructive",
+          title: "Invalid code",
+          description: "Please enter the 6-digit verification code",
+        });
+        return;
+      }
+
+      const result = await verifyEmail(pendingEmail, otpCode, pendingRole);
+      if (!result.error) {
+        // Successfully verified - redirect to appropriate dashboard
+        setTimeout(() => {
+          if (pendingRole === 'owner') {
+            navigate('/owner');
+          } else if (pendingRole === 'admin') {
+            navigate('/admin');
+          } else {
+            navigate('/');
+          }
+        }, 500); // Small delay to show success toast
+      }
+    };
+
+    const handleResendEmailOtp = async () => {
+      if (!canResendOtp) return;
+
+      const result = await resendOtp(pendingEmail);
+      if (!result.error) {
+        setCanResendOtp(false);
+        setResendCountdown(30);
+        setOtpCode('');
+      }
+    };
+
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-5xl font-bold mb-3">He&She</h1>
+            <p className="text-base text-muted-foreground">
+              Enter the 6-digit code sent to your email
+            </p>
+            <p className="text-sm text-primary mt-2 font-medium">
+              {pendingEmail}
+            </p>
+          </div>
+
+          {/* OTP Form */}
+          <form onSubmit={handleVerifyEmailOtp} className="space-y-6 flex-1">
+            <div className="flex justify-center">
+              <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Check your email inbox (and spam folder) for the verification code.
+            </p>
+
+            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+              Verify Email
+            </Button>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center mt-6 space-y-4">
+            <div>
+              {canResendOtp ? (
+                <button onClick={handleResendEmailOtp} className="text-primary hover:underline font-medium">
+                  Resend code
+                </button>
+              ) : (
+                <span className="text-muted-foreground">
+                  Resend code in {resendCountdown}s
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setView('signup');
+                setOtpCode('');
+                setPendingEmail('');
+              }}
+              className="text-muted-foreground hover:text-primary font-medium"
+            >
+              ← Back to Sign Up
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Reset Password Screen (after clicking email link)
   if (view === 'reset-password') {
     return (
@@ -525,21 +683,39 @@ const Auth = () => {
           {/* Reset Password Form */}
           <form onSubmit={handleResetPassword} className="space-y-4 flex-1">
             <div className="space-y-4">
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="New Password"
-                className="h-12 text-base"
-              />
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New Password"
+                  className="h-12 text-base pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
 
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm New Password"
-                className="h-12 text-base"
-              />
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm New Password"
+                  className="h-12 text-base pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <div className="pt-6">
@@ -597,12 +773,30 @@ const Auth = () => {
             {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
 
             <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone Number (e.g., +91XXXXXXXXXX)"
               className="h-12 text-base"
             />
+            {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="h-12 text-base pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
             {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
 
             <div className="space-y-3 pt-2">

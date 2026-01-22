@@ -4,12 +4,12 @@
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Token management
+// Token management - using sessionStorage so sessions expire when browser closes
 const TOKEN_KEY = 'heandshepg_token';
 
-export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const setToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
-export const removeToken = (): void => localStorage.removeItem(TOKEN_KEY);
+export const getToken = (): string | null => sessionStorage.getItem(TOKEN_KEY);
+export const setToken = (token: string): void => sessionStorage.setItem(TOKEN_KEY, token);
+export const removeToken = (): void => sessionStorage.removeItem(TOKEN_KEY);
 
 // API request helper
 async function request<T>(
@@ -113,10 +113,33 @@ export interface Favorite {
 // Auth API
 export const api = {
     // Auth
-    async signup(email: string, password: string, name: string, role: string): Promise<AuthResponse> {
-        return request<AuthResponse>('/api/auth/signup', {
+    async signup(email: string, password: string, name: string, phone: string, role: string): Promise<{
+        message: string;
+        email: string;
+        expires_in_minutes: number;
+        requires_verification: boolean;
+    }> {
+        return request('/api/auth/signup', {
             method: 'POST',
-            body: JSON.stringify({ email, password, name, role }),
+            body: JSON.stringify({ email, password, name, phone, role }),
+        });
+    },
+
+    async verifyEmail(email: string, otpCode: string): Promise<AuthResponse> {
+        return request<AuthResponse>('/api/auth/verify-email', {
+            method: 'POST',
+            body: JSON.stringify({ email, otp_code: otpCode }),
+        });
+    },
+
+    async resendOtp(email: string): Promise<{
+        message: string;
+        email: string;
+        expires_in_minutes: number;
+    }> {
+        return request('/api/auth/resend-otp', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
         });
     },
 
@@ -543,6 +566,93 @@ export const api = {
 
     async getPaymentHistory(): Promise<any[]> {
         return request('/api/payments/history');
+    },
+
+    // ========== Wallet APIs ==========
+
+    async getWalletBalance(): Promise<{
+        balance: number;
+        pending_balance: number;
+        available_balance: number;
+        currency: string;
+        balance_inr: number;
+    }> {
+        return request('/api/wallet/balance');
+    },
+
+    async getWalletTransactions(limit: number = 50): Promise<any[]> {
+        return request(`/api/wallet/transactions?limit=${limit}`);
+    },
+
+    async initiateWalletPayment(bookingId: string, amount: number): Promise<{
+        transaction_id: string;
+        razorpay_order_id: string;
+        amount: number;
+        currency: string;
+        key_id: string;
+        message: string;
+    }> {
+        return request('/api/wallet/initiate-payment', {
+            method: 'POST',
+            body: JSON.stringify({ booking_id: bookingId, amount }),
+        });
+    },
+
+    async verifyWalletPayment(data: {
+        transaction_id: string;
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+    }): Promise<any> {
+        return request('/api/wallet/verify-razorpay', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async verifyWalletOTP(transactionId: string, otp: string): Promise<any> {
+        return request('/api/wallet/verify-otp', {
+            method: 'POST',
+            body: JSON.stringify({ transaction_id: transactionId, otp }),
+        });
+    },
+
+    async resendWalletOTP(transactionId: string): Promise<any> {
+        return request('/api/wallet/resend-otp', {
+            method: 'POST',
+            body: JSON.stringify({ transaction_id: transactionId }),
+        });
+    },
+
+    async getMyPendingPayments(): Promise<any[]> {
+        return request('/api/wallet/my-pending-payments');
+    },
+
+    // ========== Notifications APIs ==========
+
+    async getNotifications(unreadOnly: boolean = false): Promise<{
+        id: string;
+        title: string;
+        message: string;
+        type: string;
+        read: boolean;
+        link?: string;
+        created_at: string;
+    }[]> {
+        const query = unreadOnly ? '?unread_only=true' : '';
+        return request(`/api/users/notifications${query}`);
+    },
+
+    async markNotificationRead(notificationId: string): Promise<{ message: string }> {
+        return request(`/api/users/notifications/${notificationId}/read`, {
+            method: 'PUT',
+        });
+    },
+
+    async markAllNotificationsRead(): Promise<{ message: string }> {
+        return request('/api/users/notifications/read-all', {
+            method: 'PUT',
+        });
     },
 };
 

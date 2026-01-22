@@ -27,7 +27,7 @@ const Search = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { favorites, toggleFavorite } = useFavorites(user?.id);
+  const { favorites, toggleFavorite } = useFavorites();
   const [properties, setProperties] = useState<Property[]>([]);
   const [reviews, setReviews] = useState<Record<string, Review[]>>({});
   const [loading, setLoading] = useState(true);
@@ -113,7 +113,7 @@ const Search = () => {
       try {
         await navigator.share({ title: property.title, text, url });
       } catch (error) {
-        console.log('Error sharing:', error);
+        // Share was cancelled or failed - no action needed
       }
     } else {
       navigator.clipboard.writeText(url);
@@ -182,7 +182,7 @@ const Search = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <Header />
       <div className="container py-8">
         <div className="max-w-6xl mx-auto">

@@ -107,7 +107,7 @@ const PropertyDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-24">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <p>Loading property details...</p>
@@ -118,7 +118,7 @@ const PropertyDetail = () => {
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-24">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
@@ -131,7 +131,7 @@ const PropertyDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       <Header />
       <div className="container py-8">
         <div className="max-w-6xl mx-auto">

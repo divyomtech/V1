@@ -57,6 +57,20 @@ const OwnerDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      // Fetch owner's profile for reminder settings
+      try {
+        const profileData = await api.getProfile();
+        if (profileData) {
+          setReminders({
+            paymentReminders: profileData.payment_reminders_enabled ?? false,
+            maintenanceReminders: profileData.maintenance_reminders_enabled ?? false
+          });
+          setOwnerProfile(profileData);
+        }
+      } catch (e) {
+        // Profile fetch might fail, continue with defaults
+      }
+
       // Fetch properties
       const propertiesData = await api.getProperties();
       // Filter to only owner's properties (API should handle this, but filter just in case)
@@ -183,7 +197,12 @@ const OwnerDashboard = () => {
 
   const handleReminderToggle = async (type: 'payment' | 'maintenance', value: boolean) => {
     try {
-      // TODO: Implement profile update API
+      const updateData = type === 'payment'
+        ? { payment_reminders_enabled: value }
+        : { maintenance_reminders_enabled: value };
+
+      await api.updateProfile(updateData);
+
       setReminders(prev => ({
         ...prev,
         [`${type}Reminders`]: value
@@ -191,7 +210,7 @@ const OwnerDashboard = () => {
 
       toast({
         title: "Reminder settings updated",
-        description: `${type === 'payment' ? 'Payment' : 'Maintenance'} reminders ${value ? 'enabled' : 'disabled'}`,
+        description: `${type === 'payment' ? 'Payment' : 'Maintenance'} reminders ${value ? 'enabled' : 'disabled'}. ${value ? 'Your tenants will receive notifications about upcoming payments.' : ''}`,
       });
     } catch (error) {
       console.error('Error updating reminders:', error);

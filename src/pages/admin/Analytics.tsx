@@ -42,7 +42,7 @@ const AdminAnalytics = () => {
                 customers = users.filter((u: any) => u.role === 'customer').length;
                 owners = users.filter((u: any) => u.role === 'owner').length;
             } catch (e) {
-                console.log('Could not fetch user breakdown');
+                // Could not fetch user breakdown
             }
 
             setStats({

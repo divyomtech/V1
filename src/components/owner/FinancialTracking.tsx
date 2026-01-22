@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Clock, CheckCircle, AlertCircle, DollarSign, TrendingUp, Download } from "lucide-react";
+import { CreditCard, Clock, CheckCircle, AlertCircle, TrendingUp, Download, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { format } from "date-fns";
+import { api } from "@/lib/api";
 
 interface Payment {
   id: string;
@@ -16,6 +18,27 @@ interface Payment {
   tenant_name?: string;
 }
 
+interface WalletBalance {
+  balance: number;
+  pending_balance: number;
+  available_balance: number;
+  currency: string;
+  balance_inr: number;
+}
+
+interface WalletTransaction {
+  id: string;
+  amount: number;
+  amount_inr: number;
+  transaction_type: string;
+  status: string;
+  payer_name?: string;
+  receiver_name?: string;
+  description?: string;
+  otp_verified: boolean;
+  created_at: string;
+}
+
 interface FinancialTrackingProps {
   payments: Payment[];
   pendingAmount: number;
@@ -24,6 +47,29 @@ interface FinancialTrackingProps {
 }
 
 const FinancialTracking = ({ payments, pendingAmount, receivedAmount, upcomingAmount }: FinancialTrackingProps) => {
+  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
+  const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
+  const [loadingWallet, setLoadingWallet] = useState(true);
+
+  useEffect(() => {
+    fetchWalletData();
+  }, []);
+
+  const fetchWalletData = async () => {
+    try {
+      const [balance, transactions] = await Promise.all([
+        api.getWalletBalance(),
+        api.getWalletTransactions(20)
+      ]);
+      setWalletBalance(balance);
+      setWalletTransactions(transactions);
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+    } finally {
+      setLoadingWallet(false);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -37,7 +83,9 @@ const FinancialTracking = ({ payments, pendingAmount, receivedAmount, upcomingAm
     const variants: any = {
       completed: 'default',
       pending: 'secondary',
-      failed: 'destructive'
+      failed: 'destructive',
+      verified: 'default',
+      otp_sent: 'secondary'
     };
     return variants[status] || 'secondary';
   };
@@ -48,6 +96,95 @@ const FinancialTracking = ({ payments, pendingAmount, receivedAmount, upcomingAm
 
   return (
     <div className="space-y-6">
+      {/* Wallet Balance Card */}
+      <Card className="bg-gradient-to-br from-primary/10 via-accent/5 to-background border-2 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="h-6 w-6 text-primary" />
+            My Wallet
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingWallet ? (
+            <div className="animate-pulse">
+              <div className="h-10 bg-muted rounded w-40 mb-2"></div>
+              <div className="h-4 bg-muted rounded w-24"></div>
+            </div>
+          ) : walletBalance ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground">Available Balance</p>
+                <p className="text-4xl font-bold text-primary">₹{walletBalance.balance_inr.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Withdrawable amount</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">₹{(walletBalance.pending_balance / 100).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Awaiting OTP verification</p>
+              </div>
+              <div className="flex items-center justify-center">
+                <Button variant="outline" className="gap-2">
+                  <ArrowDownRight className="h-4 w-4" />
+                  Withdraw Funds
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No wallet found</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Wallet Transactions */}
+      {walletTransactions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowUpRight className="h-5 w-5" />
+              Recent Wallet Transactions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {walletTransactions.slice(0, 5).map((txn) => (
+                <div key={txn.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    {txn.transaction_type === 'credit' ? (
+                      <ArrowDownRight className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <ArrowUpRight className="h-5 w-5 text-red-500" />
+                    )}
+                    <div>
+                      <p className="font-medium">{txn.payer_name || 'Payment'}</p>
+                      <p className="text-sm text-muted-foreground">{txn.description || 'Wallet transaction'}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(txn.created_at), 'MMM dd, yyyy HH:mm')}
+                        </span>
+                        {txn.otp_verified && (
+                          <Badge variant="outline" className="text-xs text-green-600">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Verified
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold text-lg ${txn.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                      {txn.transaction_type === 'credit' ? '+' : '-'}₹{txn.amount_inr.toLocaleString()}
+                    </p>
+                    <Badge variant={getStatusBadge(txn.status)}>
+                      {txn.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Financial Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -107,7 +244,7 @@ const FinancialTracking = ({ payments, pendingAmount, receivedAmount, upcomingAm
               <TabsTrigger value="pending">Pending ({filterPaymentsByStatus('pending').length})</TabsTrigger>
               <TabsTrigger value="failed">Failed ({filterPaymentsByStatus('failed').length})</TabsTrigger>
             </TabsList>
-            
+
             {['all', 'completed', 'pending', 'failed'].map((tab) => (
               <TabsContent key={tab} value={tab} className="space-y-3 mt-4">
                 {(tab === 'all' ? payments : filterPaymentsByStatus(tab)).length === 0 ? (
@@ -152,3 +289,4 @@ const FinancialTracking = ({ payments, pendingAmount, receivedAmount, upcomingAm
 };
 
 export default FinancialTracking;
+

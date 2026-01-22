@@ -204,12 +204,55 @@ const Profile = () => {
         updateData.emergency_contact_address = profile.emergency_contact_address;
       }
 
-      await api.updateProfile(updateData);
+      const response = await api.updateProfile(updateData);
 
+      // Show profile update success
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",
       });
+
+      // Handle notification status feedback
+      const notificationStatus = response?.notification_status;
+      if (notificationStatus) {
+        // Email notification feedback
+        if (notificationStatus.email_confirmation_sent === true) {
+          toast({
+            title: "📧 Email Confirmation Sent",
+            description: "We've sent a confirmation email to verify your email notifications.",
+          });
+        } else if (notificationStatus.email_confirmation_sent === false && notificationStatus.email_confirmation_error) {
+          toast({
+            variant: "destructive",
+            title: "Email Confirmation Failed",
+            description: notificationStatus.email_confirmation_error,
+          });
+        } else if (notificationStatus.email_already_confirmed) {
+          toast({
+            title: "Email Already Confirmed",
+            description: "Email notifications were already confirmed recently.",
+          });
+        }
+
+        // SMS notification feedback
+        if (notificationStatus.sms_confirmation_sent === true) {
+          toast({
+            title: "📱 SMS Confirmation Sent",
+            description: "We've sent a confirmation SMS to your phone number.",
+          });
+        } else if (notificationStatus.sms_confirmation_sent === false && notificationStatus.sms_confirmation_error) {
+          toast({
+            variant: "destructive",
+            title: "SMS Confirmation Failed",
+            description: notificationStatus.sms_confirmation_error,
+          });
+        } else if (notificationStatus.sms_already_confirmed) {
+          toast({
+            title: "SMS Already Confirmed",
+            description: "SMS notifications were already confirmed recently.",
+          });
+        }
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -220,6 +263,7 @@ const Profile = () => {
       setSaving(false);
     }
   };
+
 
   const handleChangePassword = async () => {
     // Validation

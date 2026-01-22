@@ -25,7 +25,9 @@ interface AuthContextType {
   profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role: AppRole) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, name: string, phone: string, role: AppRole) => Promise<{ error: any; requiresVerification?: boolean; email?: string; role?: AppRole }>;
+  verifyEmail: (email: string, otpCode: string, role: AppRole) => Promise<{ error: any }>;
+  resendOtp: (email: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshRole: () => Promise<void>;
@@ -74,9 +76,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, selectedRole: AppRole) => {
+  const signUp = async (email: string, password: string, name: string, phone: string, selectedRole: AppRole) => {
     try {
-      const response = await api.signup(email, password, name, selectedRole);
+      const response = await api.signup(email, password, name, phone, selectedRole);
+
+      // New flow: OTP verification required
+      if (response.requires_verification) {
+        toast({
+          title: "Verification Required",
+          description: `We've sent a verification code to ${response.email}`,
+        });
+
+        // Return email for OTP verification step
+        return { error: null, requiresVerification: true, email: response.email, role: selectedRole };
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Signup failed",
+        description: error.message,
+      });
+      return { error };
+    }
+  };
+
+  const verifyEmail = async (email: string, otpCode: string, selectedRole: AppRole) => {
+    try {
+      const response = await api.verifyEmail(email, otpCode);
 
       // Store token
       setToken(response.token.access_token);
@@ -97,7 +125,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Signup failed",
+        title: "Verification failed",
+        description: error.message,
+      });
+      return { error };
+    }
+  };
+
+  const resendOtp = async (email: string) => {
+    try {
+      const response = await api.resendOtp(email);
+
+      toast({
+        title: "Code Resent",
+        description: `New verification code sent to ${response.email}`,
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to resend code",
         description: error.message,
       });
       return { error };
@@ -121,11 +169,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(response.user);
       setProfile(response.profile);
       setRole(response.role);
-
-      console.log('Login successful:', {
-        user: response.user.email,
-        role: response.role
-      });
 
       // Toast removed - role validation in Auth.tsx will handle redirects
       return { error: null };
@@ -167,7 +210,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, role, loading, signUp, signIn, signOut, refreshRole, resetPassword }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, signUp, verifyEmail, resendOtp, signIn, signOut, refreshRole, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

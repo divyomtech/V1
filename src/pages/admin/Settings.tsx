@@ -49,7 +49,7 @@ const AdminSettings = () => {
             });
             setSettings(prev => ({ ...prev, ...settingsMap }));
         } catch (error) {
-            console.log('Using default settings');
+            // Using default settings
         } finally {
             setLoading(false);
         }

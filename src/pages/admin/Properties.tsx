@@ -50,7 +50,7 @@ const AdminProperties = () => {
                     owner_name: p.owner_name || 'Unknown',
                 })));
             } catch (e) {
-                console.log('Could not fetch properties');
+                // Could not fetch properties from moderation endpoint
             }
         } finally {
             setLoading(false);
