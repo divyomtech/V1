@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell, BarChart3, Wallet, UserCheck } from "lucide-react";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell, BarChart3, Wallet, UserCheck, Megaphone, Trash2, AlertTriangle, AlertCircle, Info } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import AnalyticsDashboard from "@/components/owner/AnalyticsDashboard";
@@ -47,11 +50,21 @@ const OwnerDashboard = () => {
     propertyPerformance: []
   });
   const [ownerProfile, setOwnerProfile] = useState<any>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcementDialogOpen, setAnnouncementDialogOpen] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: '',
+    message: '',
+    priority: 'normal' as 'normal' | 'important' | 'urgent',
+    property_id: 'all'
+  });
+  const [creatingAnnouncement, setCreatingAnnouncement] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchAnnouncements();
     }
   }, [user]);
 
@@ -71,11 +84,9 @@ const OwnerDashboard = () => {
         // Profile fetch might fail, continue with defaults
       }
 
-      // Fetch properties
-      const propertiesData = await api.getProperties();
-      // Filter to only owner's properties (API should handle this, but filter just in case)
-      const ownerProperties = propertiesData || [];
-      setProperties(ownerProperties);
+      // Fetch properties owned by this owner
+      const propertiesData = await api.getOwnerProperties();
+      setProperties(propertiesData || []);
 
       // Fetch bookings - for owners this would need the owner endpoint
       // For now, we'll use the regular bookings and process them
@@ -90,15 +101,15 @@ const OwnerDashboard = () => {
       );
       const pendingRequests = allBookings.filter((b: any) => b.status === 'requested');
       const totalTenants = allBookings.filter((b: any) =>
-        b.status === 'checked-in' || b.status === 'active'
+        b.status === 'checked-in' || b.status === 'active' || b.status === 'paid'
       ).length;
 
       const monthlyRevenue = allBookings
-        .filter((b: any) => b.status === 'active' || b.status === 'checked-in')
+        .filter((b: any) => b.status === 'active' || b.status === 'checked-in' || b.status === 'paid')
         .reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
 
       setStats({
-        totalProperties: ownerProperties.length,
+        totalProperties: (propertiesData || []).length,
         activeBookings: activeBookings.length,
         pendingRequests: pendingRequests.length,
         monthlyRevenue,
@@ -106,9 +117,9 @@ const OwnerDashboard = () => {
         pendingPayments: 0
       });
 
-      // Process tenant data
+      // Process tenant data - include 'paid' status as tenants
       const tenantsList = allBookings
-        .filter((b: any) => b.status === 'active' || b.status === 'checked-in')
+        .filter((b: any) => b.status === 'active' || b.status === 'checked-in' || b.status === 'paid')
         .map((b: any) => ({
           id: b.customer_id,
           name: b.customer_name || 'Unknown',
@@ -219,6 +230,66 @@ const OwnerDashboard = () => {
         description: "Failed to update reminder settings",
         variant: "destructive"
       });
+    }
+  };
+
+  const fetchAnnouncements = async () => {
+    try {
+      const data = await api.getOwnerAnnouncements();
+      setAnnouncements(data.announcements || []);
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+    }
+  };
+
+  const handleCreateAnnouncement = async () => {
+    if (!newAnnouncement.title || !newAnnouncement.message) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Title and message are required' });
+      return;
+    }
+    setCreatingAnnouncement(true);
+    try {
+      await api.createAnnouncement({
+        title: newAnnouncement.title,
+        message: newAnnouncement.message,
+        priority: newAnnouncement.priority,
+        property_id: newAnnouncement.property_id === 'all' ? undefined : newAnnouncement.property_id
+      });
+      toast({ title: 'Announcement Created', description: 'Your tenants have been notified via email.' });
+      setAnnouncementDialogOpen(false);
+      setNewAnnouncement({ title: '', message: '', priority: 'normal', property_id: 'all' });
+      fetchAnnouncements();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setCreatingAnnouncement(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this announcement?')) return;
+    try {
+      await api.deleteAnnouncement(id);
+      toast({ title: 'Deleted', description: 'Announcement removed.' });
+      fetchAnnouncements();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'important': return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      default: return <Info className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'border-red-500 bg-red-50 dark:bg-red-950';
+      case 'important': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950';
+      default: return 'border-blue-500 bg-blue-50 dark:bg-blue-950';
     }
   };
 
@@ -462,7 +533,120 @@ const OwnerDashboard = () => {
                   <h3 className="font-semibold text-center">Profile</h3>
                 </CardContent>
               </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/30" onClick={() => setAnnouncementDialogOpen(true)}>
+                <CardContent className="flex flex-col items-center justify-center p-6">
+                  <Megaphone className="h-8 w-8 mb-2 text-primary" />
+                  <h3 className="font-semibold text-center">Announce</h3>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Announcement Dialog */}
+            <Dialog open={announcementDialogOpen} onOpenChange={setAnnouncementDialogOpen}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Megaphone className="h-5 w-5 text-primary" />
+                    Send Announcement to Tenants
+                  </DialogTitle>
+                  <DialogDescription>
+                    Create an announcement to notify all tenants. They will receive an email notification.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="ann-title">Title *</Label>
+                    <Input
+                      id="ann-title"
+                      placeholder="e.g., Water Supply Notice"
+                      value={newAnnouncement.title}
+                      onChange={(e) => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ann-message">Message *</Label>
+                    <Textarea
+                      id="ann-message"
+                      placeholder="Write your announcement message here..."
+                      rows={4}
+                      value={newAnnouncement.message}
+                      onChange={(e) => setNewAnnouncement({ ...newAnnouncement, message: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Priority</Label>
+                      <Select value={newAnnouncement.priority} onValueChange={(v: any) => setNewAnnouncement({ ...newAnnouncement, priority: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="important">Important</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Property (Optional)</Label>
+                      <Select value={newAnnouncement.property_id} onValueChange={(v) => setNewAnnouncement({ ...newAnnouncement, property_id: v })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Properties" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Properties</SelectItem>
+                          {properties.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAnnouncementDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleCreateAnnouncement} disabled={creatingAnnouncement}>
+                    {creatingAnnouncement ? 'Sending...' : 'Send Announcement'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Announcements List */}
+            {announcements.length > 0 && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Megaphone className="h-5 w-5" />
+                    Your Announcements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {announcements.slice(0, 5).map((ann) => (
+                      <div key={ann.id} className={`p-4 border-l-4 rounded-lg ${getPriorityColor(ann.priority)}`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-2">
+                            {getPriorityIcon(ann.priority)}
+                            <div>
+                              <h4 className="font-semibold">{ann.title}</h4>
+                              <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {new Date(ann.created_at).toLocaleDateString()} • {ann.property_title || 'All Properties'}
+                              </p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteAnnouncement(ann.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Monthly Reminders */}
             <Card className="mb-8">

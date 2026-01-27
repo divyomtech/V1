@@ -28,7 +28,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, phone: string, role: AppRole) => Promise<{ error: any; requiresVerification?: boolean; email?: string; role?: AppRole }>;
   verifyEmail: (email: string, otpCode: string, role: AppRole) => Promise<{ error: any }>;
   resendOtp: (email: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (identifier: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshRole: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
@@ -152,7 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (identifier: string, password: string) => {
     try {
       // Clear previous user state first to prevent stale data
       setUser(null);
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole(null);
       removeToken();
 
-      const response = await api.login(email, password);
+      const response = await api.login(identifier, password);
 
       // Store token
       setToken(response.token.access_token);

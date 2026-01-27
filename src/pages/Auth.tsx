@@ -11,11 +11,17 @@ import welcomeIllustration from '@/assets/welcome-illustration.png';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Eye, EyeOff } from 'lucide-react';
 
-const authSchema = z.object({
+// Separate validation schemas for login and signup
+const loginSchema = z.object({
+  identifier: z.string().min(1, 'Email or phone number is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const signupSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits').max(15, 'Phone number too long').optional(),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  phone: z.string().min(10, 'Phone number is required (at least 10 digits)').max(15, 'Phone number too long'),
 });
 
 const Auth = () => {
@@ -121,16 +127,20 @@ const Auth = () => {
 
   const validateForm = () => {
     try {
-      authSchema.parse({
-        email,
-        password,
-        name: view === 'signup' ? name : undefined,
-        phone: view === 'signup' ? phone : undefined
-      });
-      // Additional phone validation for signup
-      if (view === 'signup' && (!phone || phone.length < 10)) {
-        setErrors({ phone: 'Phone number is required (at least 10 digits)' });
-        return false;
+      if (view === 'login') {
+        // For login: validate identifier (email or phone) and password
+        loginSchema.parse({
+          identifier: email, // email state holds the identifier (email or phone)
+          password,
+        });
+      } else if (view === 'signup') {
+        // For signup: validate all fields with proper email format
+        signupSchema.parse({
+          email,
+          password,
+          name,
+          phone,
+        });
       }
       setErrors({});
       return true;
@@ -139,7 +149,9 @@ const Auth = () => {
         const newErrors: Record<string, string> = {};
         error.errors.forEach((err) => {
           if (err.path[0]) {
-            newErrors[err.path[0].toString()] = err.message;
+            // Map 'identifier' errors to 'email' for display (since we use email input for login)
+            const fieldName = err.path[0].toString() === 'identifier' ? 'email' : err.path[0].toString();
+            newErrors[fieldName] = err.message;
           }
         });
         setErrors(newErrors);
@@ -316,7 +328,7 @@ const Auth = () => {
           <div className="space-y-6 pb-4">
             <Button
               onClick={() => setView('signup')}
-              className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl"
+              className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl"
             >
               Get Started
             </Button>
@@ -393,10 +405,10 @@ const Auth = () => {
           <form onSubmit={handleSubmit} className="space-y-4 flex-1">
             <div className="space-y-4">
               <Input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
+                placeholder="Email or Phone Number"
                 className="h-12 text-base"
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
@@ -422,7 +434,7 @@ const Auth = () => {
             </div>
 
             <div className="pt-6">
-              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
                 Login
               </Button>
             </div>
@@ -493,7 +505,7 @@ const Auth = () => {
             </div>
 
             <div className="pt-6">
-              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
                 Send Reset Link
               </Button>
             </div>
@@ -541,7 +553,7 @@ const Auth = () => {
               </InputOTP>
             </div>
 
-            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
               Verify OTP
             </Button>
           </form>
@@ -579,7 +591,7 @@ const Auth = () => {
         // Successfully verified - redirect to appropriate dashboard
         setTimeout(() => {
           if (pendingRole === 'owner') {
-            navigate('/owner');
+            navigate('/owner/dashboard');
           } else if (pendingRole === 'admin') {
             navigate('/admin');
           } else {
@@ -633,7 +645,7 @@ const Auth = () => {
               Check your email inbox (and spam folder) for the verification code.
             </p>
 
-            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
               Verify Email
             </Button>
           </form>
@@ -719,7 +731,7 @@ const Auth = () => {
             </div>
 
             <div className="pt-6">
-              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
                 Reset Password
               </Button>
             </div>
@@ -819,7 +831,7 @@ const Auth = () => {
           </div>
 
           <div className="pt-6">
-            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary/90 rounded-xl">
+            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
               Get Started
             </Button>
           </div>

@@ -4,12 +4,12 @@
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Token management - using sessionStorage so sessions expire when browser closes
+// Token management - using localStorage for persistent sessions across browser closes
 const TOKEN_KEY = 'heandshepg_token';
 
-export const getToken = (): string | null => sessionStorage.getItem(TOKEN_KEY);
-export const setToken = (token: string): void => sessionStorage.setItem(TOKEN_KEY, token);
-export const removeToken = (): void => sessionStorage.removeItem(TOKEN_KEY);
+export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
+export const setToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
+export const removeToken = (): void => localStorage.removeItem(TOKEN_KEY);
 
 // API request helper
 async function request<T>(
@@ -143,10 +143,10 @@ export const api = {
         });
     },
 
-    async login(email: string, password: string): Promise<AuthResponse> {
+    async login(identifier: string, password: string): Promise<AuthResponse> {
         return request<AuthResponse>('/api/auth/login/json', {
             method: 'POST',
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ identifier, password }),
         });
     },
 
@@ -205,6 +205,10 @@ export const api = {
         });
     },
 
+    async getOwnerProperties(): Promise<Property[]> {
+        return request<Property[]>('/api/owner/properties');
+    },
+
     // Favorites
     async getFavorites(): Promise<Favorite[]> {
         return request<Favorite[]>('/api/favorites');
@@ -255,6 +259,12 @@ export const api = {
         return request(`/api/bookings/${bookingId}/cancel`, {
             method: 'PUT',
             body: JSON.stringify({ cancel_reason: cancelReason }),
+        });
+    },
+
+    async vacateBooking(bookingId: string): Promise<any> {
+        return request(`/api/bookings/${bookingId}/vacate`, {
+            method: 'POST',
         });
     },
 
@@ -652,6 +662,34 @@ export const api = {
     async markAllNotificationsRead(): Promise<{ message: string }> {
         return request('/api/users/notifications/read-all', {
             method: 'PUT',
+        });
+    },
+
+    // ========== Announcements APIs ==========
+
+    async createAnnouncement(data: {
+        property_id?: string;
+        title: string;
+        message: string;
+        priority: 'normal' | 'important' | 'urgent';
+    }): Promise<any> {
+        return request('/api/announcements/', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async getOwnerAnnouncements(): Promise<{ announcements: any[]; total: number }> {
+        return request('/api/announcements/');
+    },
+
+    async getTenantAnnouncements(): Promise<{ announcements: any[]; total: number }> {
+        return request('/api/announcements/tenant');
+    },
+
+    async deleteAnnouncement(announcementId: string): Promise<{ message: string }> {
+        return request(`/api/announcements/${announcementId}`, {
+            method: 'DELETE',
         });
     },
 };

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { SafetyScore } from "@/components/SafetyScore";
 import { ShareDialog } from "@/components/ShareDialog";
 import { useFavorites } from "@/hooks/useFavorites";
-import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare, Heart, Gift, ArrowLeftRight, Star, Camera, TrendingUp, Zap, Video } from "lucide-react";
+import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare, Heart, Gift, ArrowLeftRight, Star, Camera, TrendingUp, Zap, Video, Megaphone, AlertTriangle, AlertCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import bangaloreImg from "@/assets/cities/bangalore.jpg";
 import hyderabadImg from "@/assets/cities/hyderabad.jpg";
@@ -49,6 +49,7 @@ const CustomerDashboard = () => {
   const [featuredProperties, setFeaturedProperties] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeBookings: 0, savedProperties: 0, referralRewards: 0 });
   const { favorites, toggleFavorite } = useFavorites(user?.id);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   // Cities loaded from API
   const [cities, setCities] = useState<CityData[]>([]);
@@ -63,8 +64,34 @@ const CustomerDashboard = () => {
       fetchDashboardData();
       fetchFeaturedProperties();
       fetchStats();
+      fetchTenantAnnouncements();
     }
   }, [user]);
+
+  const fetchTenantAnnouncements = async () => {
+    try {
+      const data = await api.getTenantAnnouncements();
+      setAnnouncements(data.announcements || []);
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return <AlertTriangle className="h-5 w-5 text-red-500" />;
+      case 'important': return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+      default: return <Info className="h-5 w-5 text-blue-500" />;
+    }
+  };
+
+  const getPriorityStyles = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'border-red-500 bg-red-50 dark:bg-red-950/50';
+      case 'important': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/50';
+      default: return 'border-blue-500 bg-blue-50 dark:bg-blue-950/50';
+    }
+  };
 
   const fetchCities = async () => {
     try {
@@ -171,6 +198,33 @@ const CustomerDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         <div className="min-h-full bg-background">
+
+          {/* Announcements Banner - Priority Display */}
+          {announcements.length > 0 && (
+            <div className="px-4 py-3 space-y-2">
+              {announcements.slice(0, 3).map((ann) => (
+                <div key={ann.id} className={`p-4 border-l-4 rounded-lg shadow-sm ${getPriorityStyles(ann.priority)}`}>
+                  <div className="flex items-start gap-3">
+                    {getPriorityIcon(ann.priority)}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Megaphone className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium uppercase text-muted-foreground">Owner Notice</span>
+                        <Badge variant="outline" className="text-xs">{ann.priority}</Badge>
+                      </div>
+                      <h4 className="font-semibold mt-1">{ann.title}</h4>
+                      <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {ann.property_title && <span>{ann.property_title} • </span>}
+                        {new Date(ann.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Header Section */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-4 flex items-center justify-between shadow-sm">
             <div className="flex-1 flex flex-col items-center justify-center">

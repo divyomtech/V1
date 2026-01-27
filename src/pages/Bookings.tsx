@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Calendar, IndianRupee, MapPin, Home, CreditCard, Loader2, CheckCircle, Copy, KeyRound, RefreshCw } from 'lucide-react';
+import { Calendar, IndianRupee, MapPin, Home, CreditCard, Loader2, CheckCircle, Copy, KeyRound, RefreshCw, LogOut } from 'lucide-react';
 
 // Declare Razorpay on window
 declare global {
@@ -61,6 +61,7 @@ const Bookings = () => {
   const [regeneratingOtp, setRegeneratingOtp] = useState(false);
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [regeneratingTxnId, setRegeneratingTxnId] = useState<string | null>(null);
+  const [vacatingBookingId, setVacatingBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -170,9 +171,9 @@ const Bookings = () => {
             });
 
             // Show OTP in dialog for customer to share with owner
-            if (verifyResult.owner_otp) {
+            if (verifyResult.otp) {
               setPaymentOtp({
-                otp: verifyResult.owner_otp,
+                otp: verifyResult.otp,
                 ownerName: verifyResult.owner_name || 'Property Owner',
                 amount: verifyResult.amount || booking.amount,
                 transactionId: verifyResult.transaction_id,
@@ -461,6 +462,50 @@ const Bookings = () => {
                                     }}
                                   >
                                     Cancel Request
+                                  </Button>
+                                )}
+
+                                {/* Vacate PG Button - Show for paid/active bookings */}
+                                {['paid', 'active', 'checked-in'].includes(booking.status) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                                    disabled={vacatingBookingId === booking.id}
+                                    onClick={async () => {
+                                      if (!confirm('Are you sure you want to vacate this PG? The owner will be notified about your request.')) {
+                                        return;
+                                      }
+                                      setVacatingBookingId(booking.id);
+                                      try {
+                                        await api.vacateBooking(booking.id);
+                                        toast({
+                                          title: 'Vacate Request Sent',
+                                          description: 'The property owner has been notified about your vacate request.',
+                                        });
+                                        fetchBookings();
+                                      } catch (error: any) {
+                                        toast({
+                                          variant: 'destructive',
+                                          title: 'Error',
+                                          description: error.message,
+                                        });
+                                      } finally {
+                                        setVacatingBookingId(null);
+                                      }
+                                    }}
+                                  >
+                                    {vacatingBookingId === booking.id ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Processing...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <LogOut className="h-4 w-4 mr-2" />
+                                        Vacate PG
+                                      </>
+                                    )}
                                   </Button>
                                 )}
                               </div>

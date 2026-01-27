@@ -26,7 +26,7 @@ const propertySchema = z.object({
   deposit: z.number().int().min(0, 'Deposit cannot be negative').max(5000000, 'Deposit must be less than ₹50,00,000'),
   rules: z.string().trim().max(1000, 'Rules must be less than 1000 characters').optional(),
   photos: z.array(z.string().url('Each photo must be a valid URL')).max(20, 'Maximum 20 photos allowed'),
-  gender_preference: z.enum(['male', 'female', 'unisex']),
+  gender_preference: z.enum(['male', 'female', 'mixed']),
   available_from: z.string().min(1, 'Available from date is required'),
   amenities: z.array(z.string()),
 });
@@ -182,7 +182,6 @@ const AddProperty = () => {
         rules: validatedData.rules || undefined,
         amenities: validatedData.amenities,
         photos: validatedData.photos,
-        status: 'active' as const,
       };
 
       // Use update API for edit mode, create API for add mode
@@ -211,10 +210,19 @@ const AddProperty = () => {
           description: firstError.message,
         });
       } else {
+        // Handle different error formats
+        let errorMessage = 'Failed to save property';
+        if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error?.detail) {
+          errorMessage = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+        } else if (error?.message) {
+          errorMessage = typeof error.message === 'string' ? error.message : 'An unexpected error occurred';
+        }
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: error.message,
+          description: errorMessage,
         });
       }
     } finally {
@@ -356,7 +364,7 @@ const AddProperty = () => {
                       <SelectContent>
                         <SelectItem value="male">Boys Only</SelectItem>
                         <SelectItem value="female">Girls Only</SelectItem>
-                        <SelectItem value="unisex">Co-living</SelectItem>
+                        <SelectItem value="mixed">Co-living</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
