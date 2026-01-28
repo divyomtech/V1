@@ -209,6 +209,12 @@ export const api = {
         return request<Property[]>('/api/owner/properties');
     },
 
+    async deleteOwnerProperty(propertyId: string): Promise<{ message: string }> {
+        return request(`/api/owner/properties/${propertyId}`, {
+            method: 'DELETE',
+        });
+    },
+
     // Favorites
     async getFavorites(): Promise<Favorite[]> {
         return request<Favorite[]>('/api/favorites');
@@ -278,9 +284,9 @@ export const api = {
         rating: number;
         comment?: string;
     }): Promise<any> {
-        return request('/api/reviews', {
+        return request(`/api/reviews/property/${data.property_id}`, {
             method: 'POST',
-            body: JSON.stringify(data),
+            body: JSON.stringify({ rating: data.rating, comment: data.comment }),
         });
     },
 
@@ -672,6 +678,8 @@ export const api = {
         title: string;
         message: string;
         priority: 'normal' | 'important' | 'urgent';
+        start_time?: string;
+        end_time?: string;
     }): Promise<any> {
         return request('/api/announcements/', {
             method: 'POST',

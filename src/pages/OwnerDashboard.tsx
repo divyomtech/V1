@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell, BarChart3, Wallet, UserCheck, Megaphone, Trash2, AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell, BarChart3, Wallet, UserCheck, Megaphone, Trash2, AlertTriangle, AlertCircle, Info, Timer } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,7 +56,9 @@ const OwnerDashboard = () => {
     title: '',
     message: '',
     priority: 'normal' as 'normal' | 'important' | 'urgent',
-    property_id: 'all'
+    property_id: 'all',
+    start_time: new Date().toISOString().slice(0, 16),
+    end_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
   });
   const [creatingAnnouncement, setCreatingAnnouncement] = useState(false);
   const { toast } = useToast();
@@ -157,11 +159,11 @@ const OwnerDashboard = () => {
         };
       });
 
-      const occupancyRate = ownerProperties.length > 0
-        ? Math.round((activeBookings.length / ownerProperties.length) * 100)
+      const occupancyRate = (propertiesData || []).length > 0
+        ? Math.round((activeBookings.length / (propertiesData || []).length) * 100)
         : 0;
 
-      const propertyPerformance = ownerProperties.slice(0, 5).map((p: any) => ({
+      const propertyPerformance = (propertiesData || []).slice(0, 5).map((p: any) => ({
         name: (p.title || '').substring(0, 15) + '...',
         value: allBookings.filter((b: any) => b.property_id === p.id).length
       }));
@@ -253,14 +255,24 @@ const OwnerDashboard = () => {
         title: newAnnouncement.title,
         message: newAnnouncement.message,
         priority: newAnnouncement.priority,
-        property_id: newAnnouncement.property_id === 'all' ? undefined : newAnnouncement.property_id
+        property_id: newAnnouncement.property_id === 'all' ? undefined : newAnnouncement.property_id,
+        start_time: newAnnouncement.start_time,
+        end_time: newAnnouncement.end_time
       });
       toast({ title: 'Announcement Created', description: 'Your tenants have been notified via email.' });
       setAnnouncementDialogOpen(false);
-      setNewAnnouncement({ title: '', message: '', priority: 'normal', property_id: 'all' });
+      setNewAnnouncement({
+        title: '',
+        message: '',
+        priority: 'normal',
+        property_id: 'all',
+        start_time: new Date().toISOString().slice(0, 16),
+        end_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+      });
       fetchAnnouncements();
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
+      const errorMessage = error?.message || error?.detail || (typeof error === 'string' ? error : 'Failed to create announcement');
+      toast({ variant: 'destructive', title: 'Error', description: errorMessage });
     } finally {
       setCreatingAnnouncement(false);
     }
@@ -274,6 +286,19 @@ const OwnerDashboard = () => {
       fetchAnnouncements();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
+  const handleDeleteProperty = async (propertyId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this property? This action cannot be undone.')) return;
+    try {
+      await api.deleteOwnerProperty(propertyId);
+      toast({ title: 'Property Deleted', description: 'The property has been removed.' });
+      // Refresh properties list
+      setProperties(properties.filter(p => p.id !== propertyId));
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete property' });
     }
   };
 
@@ -291,6 +316,34 @@ const OwnerDashboard = () => {
       case 'important': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950';
       default: return 'border-blue-500 bg-blue-50 dark:bg-blue-950';
     }
+  };
+
+  // Calculate time remaining for announcement (based on start_time and end_time)
+  const getTimeRemaining = (startTime: string, endTime: string) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    // Check if announcement hasn't started yet
+    if (now < start) {
+      return { expired: false, started: false, text: 'Scheduled' };
+    }
+
+    const diff = end.getTime() - now.getTime();
+
+    if (diff <= 0) return { expired: true, started: true, text: 'Expired' };
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) {
+      return { expired: false, started: true, text: `${days}d ${hours}h left` };
+    }
+    if (hours > 0) {
+      return { expired: false, started: true, text: `${hours}h ${minutes}m left` };
+    }
+    return { expired: false, started: true, text: `${minutes}m left` };
   };
 
   return (
@@ -534,7 +587,7 @@ const OwnerDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/30" onClick={() => setAnnouncementDialogOpen(true)}>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setAnnouncementDialogOpen(true)}>
                 <CardContent className="flex flex-col items-center justify-center p-6">
                   <Megaphone className="h-8 w-8 mb-2 text-primary" />
                   <h3 className="font-semibold text-center">Announce</h3>
@@ -603,6 +656,48 @@ const OwnerDashboard = () => {
                       </Select>
                     </div>
                   </div>
+
+                  {/* Schedule Section */}
+                  <div className="bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20 p-4 rounded-lg border border-amber-200/50 dark:border-amber-800/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-4 w-4 text-amber-600" />
+                      <span className="font-medium text-sm">Schedule Announcement</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Start Time
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            type="datetime-local"
+                            value={newAnnouncement.start_time}
+                            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, start_time: e.target.value })}
+                            className="bg-white dark:bg-background border-amber-200 dark:border-amber-800/50 focus:border-amber-400 focus:ring-amber-400/20"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          End Time
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            type="datetime-local"
+                            value={newAnnouncement.end_time}
+                            onChange={(e) => setNewAnnouncement({ ...newAnnouncement, end_time: e.target.value })}
+                            className="bg-white dark:bg-background border-amber-200 dark:border-amber-800/50 focus:border-amber-400 focus:ring-amber-400/20"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-3 flex items-center gap-1">
+                      <Timer className="h-3 w-3" />
+                      Announcement will be visible from start time until end time
+                    </p>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setAnnouncementDialogOpen(false)}>Cancel</Button>
@@ -624,25 +719,37 @@ const OwnerDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {announcements.slice(0, 5).map((ann) => (
-                      <div key={ann.id} className={`p-4 border-l-4 rounded-lg ${getPriorityColor(ann.priority)}`}>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-2">
-                            {getPriorityIcon(ann.priority)}
-                            <div>
-                              <h4 className="font-semibold">{ann.title}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
-                              <p className="text-xs text-muted-foreground mt-2">
-                                {new Date(ann.created_at).toLocaleDateString()} • {ann.property_title || 'All Properties'}
-                              </p>
+                    {announcements.slice(0, 5).filter(ann => !getTimeRemaining(ann.start_time || ann.created_at, ann.end_time || new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()).expired).map((ann) => {
+                      const timeRemaining = getTimeRemaining(ann.start_time || ann.created_at, ann.end_time || new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString());
+                      return (
+                        <div key={ann.id} className={`p-4 border-l-4 rounded-lg ${getPriorityColor(ann.priority)}`}>
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-2">
+                              {getPriorityIcon(ann.priority)}
+                              <div>
+                                <h4 className="font-semibold">{ann.title}</h4>
+                                <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
+                                <div className="flex items-center flex-wrap gap-3 mt-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    {ann.property_title || 'All Properties'}
+                                  </p>
+                                  <span className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded-full ${timeRemaining.started === false
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                                    }`}>
+                                    <Timer className="h-3 w-3" />
+                                    {timeRemaining.text}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteAnnouncement(ann.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteAnnouncement(ann.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -833,6 +940,13 @@ const OwnerDashboard = () => {
                               >
                                 <Edit className="h-4 w-4 mr-1" />
                                 Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={(e) => handleDeleteProperty(property.id, e)}
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>

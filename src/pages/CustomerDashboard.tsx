@@ -11,6 +11,7 @@ import { SafetyScore } from "@/components/SafetyScore";
 import { ShareDialog } from "@/components/ShareDialog";
 import { useFavorites } from "@/hooks/useFavorites";
 import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare, Heart, Gift, ArrowLeftRight, Star, Camera, TrendingUp, Zap, Video, Megaphone, AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import bangaloreImg from "@/assets/cities/bangalore.jpg";
 import hyderabadImg from "@/assets/cities/hyderabad.jpg";
@@ -50,6 +51,7 @@ const CustomerDashboard = () => {
   const [stats, setStats] = useState({ activeBookings: 0, savedProperties: 0, referralRewards: 0 });
   const { favorites, toggleFavorite } = useFavorites(user?.id);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [sortBy, setSortBy] = useState("newest");
 
   // Cities loaded from API
   const [cities, setCities] = useState<CityData[]>([]);
@@ -515,57 +517,85 @@ const CustomerDashboard = () => {
                       <TrendingUp className="h-5 w-5 text-primary" />
                       Featured PGs
                     </h3>
-                    <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
-                      View All
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger className="w-[160px] h-9">
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Newest First</SelectItem>
+                          <SelectItem value="price_low">Price: Low to High</SelectItem>
+                          <SelectItem value="price_high">Price: High to Low</SelectItem>
+                          <SelectItem value="rating">Highest Rated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
+                        View All
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {featuredProperties.slice(0, 4).map((property) => (
-                      <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
-                        <div className="relative">
-                          {property.photos && property.photos.length > 0 ? (
-                            <img
-                              src={property.photos[0]}
-                              alt={property.title}
-                              className="w-full h-32 object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-32 bg-muted flex items-center justify-center">
-                              <Camera className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                          )}
-                          {property.instant_booking && (
-                            <Badge className="absolute top-2 left-2 bg-green-600 text-xs">
-                              <Zap className="h-2 w-2 mr-1" />
-                              Instant
-                            </Badge>
-                          )}
-                          {property.virtual_tour_url && (
-                            <Badge className="absolute top-2 right-2 bg-purple-600 text-xs">
-                              <Video className="h-2 w-2" />
-                            </Badge>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <h4 className="font-semibold text-sm truncate">{property.title}</h4>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-2 w-2" />
-                            {property.city}
-                          </p>
-                          <div className="flex items-center justify-between mt-2">
-                            <p className="text-primary font-bold text-sm">
-                              ₹{property.monthly_rent?.toLocaleString()}
-                            </p>
-                            {property.safety_score && property.safety_score >= 4 && (
-                              <div className="flex items-center gap-1 text-xs text-green-600">
-                                <Star className="h-3 w-3 fill-current" />
-                                {property.safety_score}
+                    {[...featuredProperties]
+                      .sort((a, b) => {
+                        switch (sortBy) {
+                          case 'price_low':
+                            return (a.monthly_rent || 0) - (b.monthly_rent || 0);
+                          case 'price_high':
+                            return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+                          case 'rating':
+                            return (b.safety_score || 0) - (a.safety_score || 0);
+                          case 'newest':
+                          default:
+                            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                        }
+                      })
+                      .slice(0, 4)
+                      .map((property) => (
+                        <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
+                          <div className="relative">
+                            {property.photos && property.photos.length > 0 ? (
+                              <img
+                                src={property.photos[0]}
+                                alt={property.title}
+                                className="w-full h-32 object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-32 bg-muted flex items-center justify-center">
+                                <Camera className="h-8 w-8 text-muted-foreground" />
                               </div>
                             )}
+                            {property.instant_booking && (
+                              <Badge className="absolute top-2 left-2 bg-green-600 text-xs">
+                                <Zap className="h-2 w-2 mr-1" />
+                                Instant
+                              </Badge>
+                            )}
+                            {property.virtual_tour_url && (
+                              <Badge className="absolute top-2 right-2 bg-purple-600 text-xs">
+                                <Video className="h-2 w-2" />
+                              </Badge>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          <CardContent className="p-3">
+                            <h4 className="font-semibold text-sm truncate">{property.title}</h4>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-2 w-2" />
+                              {property.city}
+                            </p>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-primary font-bold text-sm">
+                                ₹{property.monthly_rent?.toLocaleString()}
+                              </p>
+                              {property.safety_score && property.safety_score >= 4 && (
+                                <div className="flex items-center gap-1 text-xs text-green-600">
+                                  <Star className="h-3 w-3 fill-current" />
+                                  {property.safety_score}
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                   </div>
                 </div>
               )}

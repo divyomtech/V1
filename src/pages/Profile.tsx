@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Phone, MapPin, Building2, Save, Upload, Check, X, FileText, CreditCard, Shield, Bell, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Phone, MapPin, Building2, Save, Upload, Check, X, FileText, CreditCard, Shield, Bell, Lock, Eye, EyeOff, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
@@ -74,6 +74,9 @@ const Profile = () => {
     bank_ifsc_code: "",
     bank_name: ""
   });
+
+  // Track original phone number to detect changes
+  const [originalPhone, setOriginalPhone] = useState("");
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -138,6 +141,9 @@ const Profile = () => {
 
         // Load privacy settings from API
         setHideContactInfo(data.hide_contact_info === true);
+
+        // Store original phone number to detect changes
+        setOriginalPhone(data.phone || "");
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -153,6 +159,17 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
+    // Check if phone number was changed but not verified
+    const phoneChanged = profile.phone !== originalPhone && profile.phone.length >= 10;
+    if (phoneChanged) {
+      toast({
+        variant: "destructive",
+        title: "Phone Verification Required",
+        description: "Please verify your new phone number before saving. Click the Verify button next to your phone number.",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       // Build update data with all fields
@@ -211,6 +228,9 @@ const Profile = () => {
         title: "Profile updated",
         description: "Your profile has been successfully updated",
       });
+
+      // Auto-refresh profile to update verification status
+      await fetchProfile();
 
       // Handle notification status feedback
       const notificationStatus = response?.notification_status;
@@ -438,10 +458,9 @@ const Profile = () => {
           </div>
 
           <Tabs defaultValue="basic" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="security">Security</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
@@ -603,8 +622,8 @@ const Profile = () => {
                                 return;
                               }
                               toast({
-                                title: "Phone verification",
-                                description: "Phone OTP verification is not yet available. Please save your profile and the phone number will be verified by admin.",
+                                title: "Phone Verification",
+                                description: "Phone number verification via OTP is coming soon. For now, please save your profile and your phone number will be verified by admin.",
                               });
                             }}
                           >
@@ -991,8 +1010,75 @@ const Profile = () => {
               )}
             </TabsContent>
 
-            {/* Security Tab */}
-            <TabsContent value="security" className="space-y-6">
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Preferences</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Email Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive updates via email</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={emailNotifications}
+                      onChange={(e) => setEmailNotifications(e.target.checked)}
+                      className="h-5 w-5 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">SMS Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive updates via SMS</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={smsNotifications}
+                      onChange={(e) => setSmsNotifications(e.target.checked)}
+                      className="h-5 w-5 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Push Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive push notifications</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={pushNotifications}
+                      onChange={(e) => setPushNotifications(e.target.checked)}
+                      className="h-5 w-5 cursor-pointer"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {isCustomer && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Privacy Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Hide Contact Information</p>
+                        <p className="text-sm text-muted-foreground">Don't show contact to other tenants</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={hideContactInfo}
+                        onChange={(e) => setHideContactInfo(e.target.checked)}
+                        className="h-5 w-5 cursor-pointer"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Change Password Section */}
               <Card>
                 <CardHeader>
                   <CardTitle>Change Password</CardTitle>
@@ -1064,75 +1150,6 @@ const Profile = () => {
                   </Button>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            {/* Settings Tab */}
-            <TabsContent value="settings" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notification Preferences</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Email Notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive updates via email</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={emailNotifications}
-                      onChange={(e) => setEmailNotifications(e.target.checked)}
-                      className="h-5 w-5 cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">SMS Notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive updates via SMS</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={smsNotifications}
-                      onChange={(e) => setSmsNotifications(e.target.checked)}
-                      className="h-5 w-5 cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Push Notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive push notifications</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={pushNotifications}
-                      onChange={(e) => setPushNotifications(e.target.checked)}
-                      className="h-5 w-5 cursor-pointer"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {isCustomer && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Privacy Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Hide Contact Information</p>
-                        <p className="text-sm text-muted-foreground">Don't show contact to other tenants</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={hideContactInfo}
-                        onChange={(e) => setHideContactInfo(e.target.checked)}
-                        className="h-5 w-5 cursor-pointer"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               <Card className="border-destructive">
                 <CardHeader>
@@ -1140,6 +1157,7 @@ const Profile = () => {
                 </CardHeader>
                 <CardContent>
                   <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
                     Delete Account
                   </Button>
                 </CardContent>
