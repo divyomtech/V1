@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "./ui/button";
-import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart, Gift, Wallet } from "lucide-react";
+import { Home, Building2, LayoutDashboard, User, LogOut, Menu, ArrowLeft, Heart, Gift, Wallet, Wrench } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { NotificationBell } from "./NotificationBell";
@@ -17,9 +17,10 @@ const Header = () => {
 
     if (role === 'owner' || isOwnerRoute) return [
       { label: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
-      { label: 'My Properties', href: '/owner/properties', icon: Building2 },
+      { label: 'Property & Rooms', href: '/owner/properties', icon: Building2 },
       { label: 'Bookings', href: '/owner/bookings', icon: Building2 },
       { label: 'Wallet', href: '/owner/wallet', icon: Wallet },
+      { label: 'Tenants', href: '/owner/tenants', icon: User },
     ];
     if (role === 'admin') return [{ label: 'Admin Dashboard', href: '/admin', icon: LayoutDashboard }];
     return [
@@ -27,6 +28,7 @@ const Header = () => {
       { label: 'Favorites', href: '/favorites', icon: Heart },
       { label: 'Find Roommate', href: '/roommate-match', icon: User },
       { label: 'My Bookings', href: '/bookings', icon: Building2 },
+      { label: 'Maintenance', href: '/maintenance', icon: Wrench },
       { label: 'Referrals', href: '/referrals', icon: Gift },
     ];
   };
@@ -41,7 +43,8 @@ const Header = () => {
             </Button>
           )}
           <Link to="/" className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-primary">He&She</h1>
+            <img src="/logo.png" alt="He&She Logo" className="h-8 w-auto" />
+            <h1 className="text-xl font-black text-[#111827] tracking-tighter">He&She</h1>
           </Link>
         </div>
 

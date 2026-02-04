@@ -32,6 +32,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshRole: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  confirmResetPassword: (token: string, password: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -209,8 +210,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const confirmResetPassword = async (token: string, password: string) => {
+    try {
+      await api.resetPasswordConfirm(token, password);
+
+      toast({
+        title: "Password reset successful",
+        description: "Your password has been updated. You can now log in.",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Reset failed",
+        description: error.message,
+      });
+      return { error };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, role, loading, signUp, verifyEmail, resendOtp, signIn, signOut, refreshRole, resetPassword }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, signUp, verifyEmail, resendOtp, signIn, signOut, refreshRole, resetPassword, confirmResetPassword }}>
       {children}
     </AuthContext.Provider>
   );

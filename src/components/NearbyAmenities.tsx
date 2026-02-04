@@ -49,9 +49,13 @@ export const NearbyAmenities = ({ amenities }: NearbyAmenitiesProps) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {amenityTypes.map(({ key, label, icon: Icon, color }) => {
-            const items = amenities[key as keyof typeof amenities] || [];
-            if (items.length === 0) return null;
+          {Object.entries(amenities || {}).map(([key, items]) => {
+            if (!items || (items as string[]).length === 0) return null;
+
+            const predefined = amenityTypes.find(t => t.key === key);
+            const label = predefined?.label || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const Icon = predefined?.icon || MapPin;
+            const color = predefined?.color || 'bg-muted text-muted-foreground';
 
             return (
               <div key={key}>
@@ -60,7 +64,7 @@ export const NearbyAmenities = ({ amenities }: NearbyAmenitiesProps) => {
                   <span className="font-medium text-sm">{label}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {items.map((item, idx) => (
+                  {(items as string[]).map((item, idx) => (
                     <Badge key={idx} variant="secondary" className={color}>
                       {item}
                     </Badge>

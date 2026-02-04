@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Check, X, Loader2, Shield, Users, Home, FileText, UserCog } from 'lucide-react';
+import { Check, X, Loader2, Shield, Users, Home, FileText, UserCog, Bell } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { NotificationBell } from '@/components/NotificationBell';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -48,6 +49,7 @@ const AdminDashboard = () => {
   const [roleChangeDialog, setRoleChangeDialog] = useState<{ open: boolean; userId: string; newRole: 'customer' | 'owner' | 'admin'; userName: string } | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
 
   useEffect(() => {
     if (role !== 'admin') {
@@ -88,7 +90,7 @@ const AdminDashboard = () => {
 
       // Fetch audit logs for Recent Activity
       try {
-        const logs = await api.getAuditLogs(10);
+        const logs = await api.getAuditLogs({ limit: 10 });
         setAuditLogs(logs);
       } catch (e) {
         // Audit logs endpoint not available
@@ -219,18 +221,28 @@ const AdminDashboard = () => {
             </h1>
             <p className="text-muted-foreground mt-2">Manage owner applications and platform settings</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center">
+            <NotificationBell />
             <Button variant="outline" onClick={() => navigate('/admin/bookings')}>
               Bookings
             </Button>
             <Button variant="outline" onClick={() => navigate('/admin/properties')}>
               Properties
             </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/payments')}>
+              Payments
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/announcements')}>
+              Announcements
+            </Button>
             <Button variant="outline" onClick={() => navigate('/admin/settings')}>
               Settings
             </Button>
             <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
               Analytics
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/admin/cities')}>
+              Cities
             </Button>
             <Button variant="destructive" onClick={handleLogout}>
               Logout
@@ -323,11 +335,26 @@ const AdminDashboard = () => {
         {/* User Management */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCog className="h-5 w-5" />
-              User Management
-            </CardTitle>
-            <CardDescription>Manage user roles and permissions</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCog className="h-5 w-5" />
+                  User Management
+                </CardTitle>
+                <CardDescription>Manage user roles and permissions</CardDescription>
+              </div>
+              <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="owner">Owners</SelectItem>
+                  <SelectItem value="customer">Customers</SelectItem>
+                  <SelectItem value="admin">Admins</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             {usersLoading ? (
@@ -336,40 +363,42 @@ const AdminDashboard = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {users.map((user) => (
-                  <Card key={user.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{user.name}</span>
-                            <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                              {user.role}
-                            </Badge>
+                {users
+                  .filter(u => userRoleFilter === 'all' || u.role === userRoleFilter)
+                  .map((user) => (
+                    <Card key={user.id}>
+                      <CardContent className="pt-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{user.name}</span>
+                              <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                                {user.role}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-0.5">
+                              <p>Email: {user.email}</p>
+                              <p>Phone: {user.phone}</p>
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground space-y-0.5">
-                            <p>Email: {user.email}</p>
-                            <p>Phone: {user.phone}</p>
-                          </div>
+                          <Select
+                            value={user.role}
+                            onValueChange={(value) => handleRoleChange(user.id, value as any)}
+                            disabled={user.id === user?.id}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="customer">Customer</SelectItem>
+                              <SelectItem value="owner">Owner</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value) => handleRoleChange(user.id, value as any)}
-                          disabled={user.id === user?.id}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="customer">Customer</SelectItem>
-                            <SelectItem value="owner">Owner</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))}
               </div>
             )}
           </CardContent>

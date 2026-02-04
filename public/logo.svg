@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- He&She Premium Branding - Icon Only SVG -->
+  <!-- Roof -->
+  <path fill="#F5C542" d="M256 80L50 240l30 35 176-140 176 140 30-35z"/>
+  <!-- Male Figure -->
+  <circle fill="#F5C542" cx="190" cy="330" r="65"/>
+  <path fill="#F5C542" d="M110 512v-82c0-40 30-75 80-75s80 35 80 75v82z"/>
+  <!-- Female Figure -->
+  <circle fill="#F5C542" cx="332" cy="330" r="65"/>
+  <path fill="#F5C542" d="M252 512v-82c0-40 30-75 80-75s80 35 80 75v82z"/>
+  <!-- Ponytail Detail -->
+  <path fill="#F5C542" d="M397 330c30 0 45 25 45 60s-20 60-45 60-20-10-10-15 40-15 40-45-20-60-30-60z"/>
+</svg>

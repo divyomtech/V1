@@ -4,12 +4,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, Clock, Bell, BarChart3, Wallet, UserCheck, Megaphone, Trash2, AlertTriangle, AlertCircle, Info, Timer } from "lucide-react";
+import { Building2, Users, Calendar, Plus, IndianRupee, TrendingUp, User, FileText, MessageSquare, CreditCard, Settings, Search, Eye, Edit, MapPin, Bed, Zap, Shield, ShieldCheck, Clock, Bell, BarChart3, Wallet, UserCheck, Megaphone, Trash2, AlertTriangle, AlertCircle, Info, Timer, Wrench, CheckCircle2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,8 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import AnalyticsDashboard from "@/components/owner/AnalyticsDashboard";
-import FinancialTracking from "@/components/owner/FinancialTracking";
-import TenantManagement from "@/components/owner/TenantManagement";
 import heroBackground from "@/assets/hero-bg.jpg";
 
 const OwnerDashboard = () => {
@@ -30,9 +28,11 @@ const OwnerDashboard = () => {
     pendingRequests: 0,
     monthlyRevenue: 0,
     totalTenants: 0,
-    pendingPayments: 0
+    pendingPayments: 0,
+    vacatingRequests: 0
   });
   const [properties, setProperties] = useState<any[]>([]);
+  const [vacatingRequests, setVacatingRequests] = useState<any[]>([]);
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +50,7 @@ const OwnerDashboard = () => {
     propertyPerformance: []
   });
   const [ownerProfile, setOwnerProfile] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("overview");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [announcementDialogOpen, setAnnouncementDialogOpen] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
@@ -61,12 +62,15 @@ const OwnerDashboard = () => {
     end_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
   });
   const [creatingAnnouncement, setCreatingAnnouncement] = useState(false);
+  const [ownerTickets, setOwnerTickets] = useState<any[]>([]);
+  const [isUpdatingTicket, setIsUpdatingTicket] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
       fetchAnnouncements();
+      fetchOwnerTickets();
     }
   }, [user]);
 
@@ -110,13 +114,17 @@ const OwnerDashboard = () => {
         .filter((b: any) => b.status === 'active' || b.status === 'checked-in' || b.status === 'paid')
         .reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
 
+      const vacatingPending = allBookings.filter((b: any) => b.status === 'vacate_requested');
+      setVacatingRequests(vacatingPending);
+
       setStats({
         totalProperties: (propertiesData || []).length,
         activeBookings: activeBookings.length,
         pendingRequests: pendingRequests.length,
         monthlyRevenue,
         totalTenants,
-        pendingPayments: 0
+        pendingPayments: 0,
+        vacatingRequests: vacatingPending.length
       });
 
       // Process tenant data - include 'paid' status as tenants
@@ -168,11 +176,18 @@ const OwnerDashboard = () => {
         value: allBookings.filter((b: any) => b.property_id === p.id).length
       }));
 
+      // Calculate dynamic revenue trend (compare current month to previous month)
+      const currentMonthRevenue = monthlyData.length > 0 ? monthlyData[monthlyData.length - 1].revenue : 0;
+      const previousMonthRevenue = monthlyData.length > 1 ? monthlyData[monthlyData.length - 2].revenue : 0;
+      const revenueTrend = previousMonthRevenue > 0
+        ? Math.round(((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 * 10) / 10
+        : 0;
+
       setAnalyticsData({
         monthlyData: monthlyData as any,
         occupancyRate,
         totalRevenue: monthlyRevenue,
-        revenueTrend: 12.5,
+        revenueTrend,
         propertyPerformance: propertyPerformance as any
       });
 
@@ -180,6 +195,28 @@ const OwnerDashboard = () => {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOwnerTickets = async () => {
+    try {
+      const data = await api.getOwnerTickets();
+      setOwnerTickets(data || []);
+    } catch (error) {
+      console.error('Error fetching owner tickets:', error);
+    }
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: string) => {
+    setIsUpdatingTicket(true);
+    try {
+      await api.updateTicket(ticketId, { status });
+      toast({ title: 'Success', description: `Ticket status updated to ${status.replace('_', ' ')}` });
+      fetchOwnerTickets();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update ticket' });
+    } finally {
+      setIsUpdatingTicket(false);
     }
   };
 
@@ -346,44 +383,103 @@ const OwnerDashboard = () => {
     return { expired: false, started: true, text: `${minutes}m left` };
   };
 
+  // Block dashboard access for unapproved owners
+  if (ownerProfile && (ownerProfile.approval_status === 'pending' || ownerProfile.approval_status === 'rejected')) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container py-16">
+          <div className="max-w-2xl mx-auto">
+            <Card className={`border-2 ${ownerProfile.approval_status === 'pending' ? 'border-orange-300 bg-orange-50 dark:bg-orange-950' : 'border-red-300 bg-red-50 dark:bg-red-950'}`}>
+              <CardContent className="pt-8 pb-8">
+                <div className="text-center">
+                  <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6 ${ownerProfile.approval_status === 'pending' ? 'bg-orange-100 dark:bg-orange-900' : 'bg-red-100 dark:bg-red-900'}`}>
+                    <UserCheck className={`h-10 w-10 ${ownerProfile.approval_status === 'pending' ? 'text-orange-600' : 'text-red-600'}`} />
+                  </div>
+
+                  {ownerProfile.approval_status === 'pending' ? (
+                    <>
+                      <h1 className="text-2xl font-bold text-orange-900 dark:text-orange-100 mb-3">
+                        ⏳ Owner Approval Pending
+                      </h1>
+                      <p className="text-orange-700 dark:text-orange-300 mb-6 max-w-md mx-auto">
+                        Your registration request is under review. Admin needs to approve your account before you can access the owner dashboard and add properties.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h1 className="text-2xl font-bold text-red-900 dark:text-red-100 mb-3">
+                        ❌ Owner Application Rejected
+                      </h1>
+                      <p className="text-red-700 dark:text-red-300 mb-6 max-w-md mx-auto">
+                        Unfortunately, your owner application was not approved. Please contact admin for more information or to reapply.
+                      </p>
+                    </>
+                  )}
+
+                  <div className="p-4 bg-white/60 dark:bg-black/20 rounded-lg inline-block">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">📞 Need help? Contact Admin:</p>
+                    <a href="tel:6303348984" className="text-2xl font-bold text-primary hover:underline">
+                      6303348984
+                    </a>
+                  </div>
+
+                  <div className="mt-8 flex justify-center gap-4">
+                    <Button variant="outline" onClick={() => navigate('/')}>
+                      Go to Home
+                    </Button>
+                    <Button onClick={() => window.location.reload()}>
+                      Check Status Again
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
 
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-primary/20 via-accent/10 to-background min-h-[320px] flex items-center justify-center overflow-hidden">
+      <div className="relative min-h-[400px] flex items-center justify-center overflow-hidden">
+        {/* Real background image with dark overlay */}
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 hover:scale-105"
           style={{
             backgroundImage: `url(${heroBackground})`,
-            backgroundBlendMode: 'overlay'
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background" />
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
 
-        <div className="container relative z-10 py-12">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold mb-3">
+        <div className="container relative z-10 py-16">
+          <div className="text-center mb-10">
+            <h1 className="text-4xl md:text-6xl font-extrabold mb-4 text-white tracking-tight leading-tight">
               Welcome back, <span className="text-primary">{profile?.name || 'Owner'}</span>
             </h1>
-            <p className="text-lg text-muted-foreground">
-              Manage your properties, track revenue, and connect with tenants
+            <p className="text-lg md:text-xl text-gray-200 max-w-3xl mx-auto font-medium leading-relaxed opacity-90">
+              Manage multi-type rooms, track revenue, and connect with tenants effortlessly
             </p>
           </div>
 
-          {/* Feature Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
-            <div className="bg-card/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-border flex items-center gap-2">
-              <Shield className="h-5 w-5 text-success" />
-              <span className="font-semibold">Verified Owner</span>
+          {/* Feature Badges Below Heading */}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="bg-white/95 backdrop-blur-sm px-6 py-2.5 rounded-full shadow-xl border border-white/20 flex items-center gap-2.5 transition-all hover:scale-105 group">
+              <ShieldCheck className="h-5 w-5 text-slate-800" />
+              <span className="font-bold text-slate-900 text-sm">Verified Owner</span>
             </div>
-            <div className="bg-card/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-border flex items-center gap-2">
-              <Clock className="h-5 w-5 text-info" />
-              <span className="font-semibold">24/7 Support</span>
+            <div className="bg-white/95 backdrop-blur-sm px-6 py-2.5 rounded-full shadow-xl border border-white/20 flex items-center gap-2.5 transition-all hover:scale-105 group">
+              <Clock className="h-5 w-5 text-slate-800" />
+              <span className="font-bold text-slate-900 text-sm">24/7 Support</span>
             </div>
-            <div className="bg-card/95 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-border flex items-center gap-2">
-              <Zap className="h-5 w-5 text-warning" />
-              <span className="font-semibold">Quick Approvals</span>
+            <div className="bg-white/95 backdrop-blur-sm px-6 py-2.5 rounded-full shadow-xl border border-white/20 flex items-center gap-2.5 transition-all hover:scale-105 group">
+              <Zap className="h-5 w-5 text-slate-800" />
+              <span className="font-bold text-slate-900 text-sm">Quick Approvals</span>
             </div>
           </div>
         </div>
@@ -391,38 +487,12 @@ const OwnerDashboard = () => {
 
       <main className="flex-1 container py-8">
 
-        {/* Owner Approval Status Banner */}
-        {ownerProfile && ownerProfile.approval_status === 'pending' && (
-          <Card className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <UserCheck className="h-5 w-5 text-orange-600" />
-                <div>
-                  <p className="font-semibold text-orange-900 dark:text-orange-100">Owner Approval Pending</p>
-                  <p className="text-sm text-orange-700 dark:text-orange-300">Your account is under review. You'll be able to add properties once approved by admin.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {ownerProfile && ownerProfile.approval_status === 'rejected' && (
-          <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <UserCheck className="h-5 w-5 text-red-600" />
-                <div>
-                  <p className="font-semibold text-red-900 dark:text-red-100">Owner Application Rejected</p>
-                  <p className="text-sm text-red-700 dark:text-red-300">Your owner application was not approved. Please contact support for more information.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <Card className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
+        {/* Stats Cards Row 1: 4 Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <Card
+            className="border-l-4 border-l-primary hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/owner/properties')}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -436,7 +506,10 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-accent hover:shadow-md transition-shadow">
+          <Card
+            className="border-l-4 border-l-accent hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/owner/tenants')}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -450,7 +523,10 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-warning hover:shadow-md transition-shadow">
+          <Card
+            className="border-l-4 border-l-warning hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/owner/bookings')}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -464,7 +540,30 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-success hover:shadow-md transition-shadow">
+          <Card
+            className="border-l-4 border-l-accent hover:shadow-md transition-shadow cursor-pointer bg-accent/5"
+            onClick={() => navigate('/owner/bookings')}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-accent font-bold italic">Going to Vacate</p>
+                  <p className="text-3xl font-bold mt-1 text-accent-foreground">{stats.vacatingRequests}</p>
+                </div>
+                <div className="bg-accent/10 p-3 rounded-lg">
+                  <Clock className="h-8 w-8 text-accent" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stats Cards Row 2: 3 Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <Card
+            className="border-l-4 border-l-success hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/owner/finances')}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -478,7 +577,10 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-info hover:shadow-md transition-shadow">
+          <Card
+            className="border-l-4 border-l-info hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/owner/bookings')}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -492,7 +594,10 @@ const OwnerDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-destructive hover:shadow-md transition-shadow">
+          <Card
+            className="border-l-4 border-l-destructive hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/owner/finances')}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -508,8 +613,8 @@ const OwnerDashboard = () => {
         </div>
 
         {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Overview
@@ -518,13 +623,9 @@ const OwnerDashboard = () => {
               <BarChart3 className="h-4 w-4" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Financial
-            </TabsTrigger>
-            <TabsTrigger value="tenants" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              Tenants
+            <TabsTrigger value="maintenance" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Maintenance
             </TabsTrigger>
           </TabsList>
 
@@ -575,8 +676,8 @@ const OwnerDashboard = () => {
 
               <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/owner/finances')}>
                 <CardContent className="flex flex-col items-center justify-center p-6">
-                  <IndianRupee className="h-8 w-8 mb-2 text-primary" />
-                  <h3 className="font-semibold text-center">Finances</h3>
+                  <Wallet className="h-8 w-8 mb-2 text-primary" />
+                  <h3 className="font-semibold text-center">Wallet</h3>
                 </CardContent>
               </Card>
 
@@ -709,51 +810,67 @@ const OwnerDashboard = () => {
             </Dialog>
 
             {/* Announcements List */}
-            {announcements.length > 0 && (
-              <Card className="mb-8">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Megaphone className="h-5 w-5" />
-                    Your Announcements
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {announcements.slice(0, 5).filter(ann => !getTimeRemaining(ann.start_time || ann.created_at, ann.end_time || new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()).expired).map((ann) => {
-                      const timeRemaining = getTimeRemaining(ann.start_time || ann.created_at, ann.end_time || new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString());
-                      return (
-                        <div key={ann.id} className={`p-4 border-l-4 rounded-lg ${getPriorityColor(ann.priority)}`}>
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-2">
-                              {getPriorityIcon(ann.priority)}
-                              <div>
-                                <h4 className="font-semibold">{ann.title}</h4>
-                                <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
-                                <div className="flex items-center flex-wrap gap-3 mt-2">
-                                  <p className="text-xs text-muted-foreground">
-                                    {ann.property_title || 'All Properties'}
-                                  </p>
-                                  <span className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded-full ${timeRemaining.started === false
-                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
-                                    }`}>
-                                    <Timer className="h-3 w-3" />
-                                    {timeRemaining.text}
-                                  </span>
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Megaphone className="h-5 w-5" />
+                  Your Announcements
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const activeAnnouncements = announcements.filter(ann =>
+                    !getTimeRemaining(ann.start_time || ann.created_at, ann.end_time || new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()).expired
+                  );
+
+                  if (activeAnnouncements.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                        <p className="text-muted-foreground">No announcements available</p>
+                        <p className="text-sm text-muted-foreground mt-1">Click "Announce" to create one for your tenants</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {activeAnnouncements.slice(0, 5).map((ann) => {
+                        const timeRemaining = getTimeRemaining(ann.start_time || ann.created_at, ann.end_time || new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString());
+                        return (
+                          <div key={ann.id} className={`p-4 border-l-4 rounded-lg ${getPriorityColor(ann.priority)}`}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-2">
+                                {getPriorityIcon(ann.priority)}
+                                <div>
+                                  <h4 className="font-semibold">{ann.title}</h4>
+                                  <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
+                                  <div className="flex items-center flex-wrap gap-3 mt-2">
+                                    <p className="text-xs text-muted-foreground">
+                                      {ann.property_title || 'All Properties'}
+                                    </p>
+                                    <span className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded-full ${timeRemaining.started === false
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                                      }`}>
+                                      <Timer className="h-3 w-3" />
+                                      {timeRemaining.text}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteAnnouncement(ann.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteAnnouncement(ann.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
 
             {/* Monthly Reminders */}
             <Card className="mb-8">
@@ -799,6 +916,75 @@ const OwnerDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Vacating Requests List */}
+            {vacatingRequests.length > 0 && (
+              <Card className="mb-8 border-rose-200 bg-rose-50/10 shadow-sm">
+                <CardHeader className="pb-3 px-6 pt-6">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-rose-700">
+                      <Clock className="h-5 w-5" />
+                      Tenants Going to Vacate
+                    </CardTitle>
+                    <Badge variant="outline" className="bg-rose-100 text-rose-700 border-rose-200 font-bold">
+                      {vacatingRequests.length} REQUESTS
+                    </Badge>
+                  </div>
+                  <CardDescription>The following tenants have requested to vacate their rooms.</CardDescription>
+                </CardHeader>
+                <CardContent className="px-6 pb-6">
+                  <div className="space-y-3">
+                    {vacatingRequests.map((booking: any) => (
+                      <div
+                        key={booking.id}
+                        className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-xl bg-white dark:bg-card hover:border-rose-300 hover:shadow-md transition-all group"
+                      >
+                        <div className="flex items-center gap-4 mb-3 md:mb-0">
+                          <div className="h-12 w-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold text-lg border border-rose-200">
+                            {booking.customer_name?.[0] || 'G'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 dark:text-slate-100">{booking.customer_name || 'Guest'}</p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                              <Building2 className="h-3.5 w-3.5" />
+                              {booking.property?.title}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1.5">
+                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Requested: {new Date(booking.updated_at || booking.created_at).toLocaleDateString()}
+                              </span>
+                              {booking.stay_type === 'monthly' && (
+                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4 uppercase">Monthly Stay</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 sm:self-end md:self-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-semibold"
+                            onClick={() => navigate('/owner/bookings')}
+                          >
+                            Manage Request
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                            onClick={() => navigate(`/owner/bookings?bookingId=${booking.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1.5" />
+                            Details
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Recent Bookings */}
             {recentBookings.length > 0 && (
@@ -890,17 +1076,64 @@ const OwnerDashboard = () => {
                             </div>
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-4 text-sm">
-                                {property.sharing_type && (
-                                  <div className="flex items-center gap-1">
-                                    <Bed className="h-4 w-4 text-muted-foreground" />
-                                    <span>{property.sharing_type}</span>
-                                  </div>
-                                )}
+                                {(() => {
+                                  const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                                  if (monthlyRooms.length === 0) return null;
+
+                                  const defaultRoom = [...monthlyRooms].sort((a, b) => {
+                                    const aAvailable = (a.vacancy_count || 0) > 0;
+                                    const bAvailable = (b.vacancy_count || 0) > 0;
+                                    if (aAvailable && !bAvailable) return -1;
+                                    if (!aAvailable && bAvailable) return 1;
+                                    return (a.price || 0) - (b.price || 0);
+                                  })[0];
+
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <Bed className="h-4 w-4 text-muted-foreground" />
+                                      <span className="font-medium text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                        {defaultRoom.room_type}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
-                              <p className="font-bold text-lg flex items-center">
-                                <IndianRupee className="h-4 w-4" />
-                                {property.monthly_rent?.toLocaleString() || 0}
-                              </p>
+                              <div className="text-right">
+                                <p className="font-bold text-lg flex items-center justify-end">
+                                  <IndianRupee className="h-4 w-4" />
+                                  {(() => {
+                                    const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                                    if (monthlyRooms.length === 0) return property.monthly_rent?.toLocaleString() || 0;
+
+                                    const defaultRoom = [...monthlyRooms].sort((a, b) => {
+                                      const aAvailable = (a.vacancy_count || 0) > 0;
+                                      const bAvailable = (b.vacancy_count || 0) > 0;
+                                      if (aAvailable && !bAvailable) return -1;
+                                      if (!aAvailable && bAvailable) return 1;
+                                      return (a.price || 0) - (b.price || 0);
+                                    })[0];
+
+                                    return defaultRoom.price.toLocaleString();
+                                  })()}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground -mt-1">Rent/mo</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+                                  Deposit: ₹{(() => {
+                                    const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                                    if (monthlyRooms.length === 0) return property.deposit?.toLocaleString() || 0;
+
+                                    const defaultRoom = [...monthlyRooms].sort((a, b) => {
+                                      const aAvailable = (a.vacancy_count || 0) > 0;
+                                      const bAvailable = (b.vacancy_count || 0) > 0;
+                                      if (aAvailable && !bAvailable) return -1;
+                                      if (!aAvailable && bAvailable) return 1;
+                                      return (a.price || 0) - (b.price || 0);
+                                    })[0];
+
+                                    return (defaultRoom.deposit ?? property.deposit ?? 0).toLocaleString();
+                                  })()}
+                                </p>
+                              </div>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               {property.instant_booking && (
@@ -959,7 +1192,6 @@ const OwnerDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Analytics Tab */}
           <TabsContent value="analytics">
             <AnalyticsDashboard
               monthlyData={analyticsData.monthlyData}
@@ -970,24 +1202,101 @@ const OwnerDashboard = () => {
             />
           </TabsContent>
 
-          {/* Financial Tab */}
-          <TabsContent value="financial">
-            <FinancialTracking
-              payments={payments}
-              pendingAmount={payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0)}
-              receivedAmount={payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0)}
-              upcomingAmount={stats.monthlyRevenue}
-            />
-          </TabsContent>
+          {/* Maintenance Tab */}
+          <TabsContent value="maintenance">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Maintenance Requests</CardTitle>
+                    <CardDescription>Manage and resolve issues reported by your tenants</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={fetchOwnerTickets} className="gap-2">
+                    <Zap className="h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {ownerTickets.length === 0 ? (
+                  <div className="text-center py-16 bg-muted/30 rounded-lg border-2 border-dashed">
+                    <Wrench className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-30" />
+                    <p className="text-muted-foreground">No maintenance requests found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {ownerTickets.map((ticket) => (
+                      <Card key={ticket.id} className="overflow-hidden">
+                        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant={
+                                ticket.status === 'open' ? "destructive" :
+                                  ticket.status === 'in_progress' ? "secondary" :
+                                    "default"
+                              } className="text-[10px] uppercase">
+                                {ticket.status.replace('_', ' ')}
+                              </Badge>
+                              <Badge variant="outline" className={`text-[10px] uppercase ${ticket.priority === 'urgent' ? 'border-red-500 text-red-500 bg-red-50' :
+                                ticket.priority === 'high' ? 'border-orange-500 text-orange-500 bg-orange-50' :
+                                  'border-slate-300 text-slate-500'
+                                }`}>
+                                {ticket.priority} Priority
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                Reported {new Date(ticket.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <h4 className="font-bold text-lg">{ticket.title}</h4>
+                            <p className="text-sm text-slate-600 mb-2">{ticket.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Building2 className="h-3 w-3" />
+                              <span>{ticket.property?.title || 'Property'}</span>
+                              <span className="mx-1">•</span>
+                              <User className="h-3 w-3" />
+                              <span>Tenant: {ticket.tenant?.email || 'N/A'}</span>
+                            </div>
+                          </div>
 
-          {/* Tenants Tab */}
-          <TabsContent value="tenants">
-            <TenantManagement
-              tenants={tenants}
-              activeTenants={stats.totalTenants}
-              pendingDocuments={tenants.filter(t => !t.documents_submitted).length}
-              pendingPayments={stats.pendingPayments}
-            />
+                          <div className="flex flex-col gap-2 min-w-[200px]">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Update Status</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {ticket.status === 'open' && (
+                                <Button
+                                  size="sm"
+                                  className="bg-orange-600 hover:bg-orange-700 h-8 text-xs"
+                                  onClick={() => handleUpdateTicketStatus(ticket.id, 'in_progress')}
+                                  disabled={isUpdatingTicket}
+                                >
+                                  Start Work
+                                </Button>
+                              )}
+                              {(ticket.status === 'open' || ticket.status === 'in_progress') && (
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 h-8 text-xs gap-1"
+                                  onClick={() => handleUpdateTicketStatus(ticket.id, 'resolved')}
+                                  disabled={isUpdatingTicket}
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Resolve
+                                </Button>
+                              )}
+                              {ticket.status === 'resolved' && (
+                                <div className="col-span-2 py-2 px-3 bg-green-50 text-green-700 rounded-md text-xs font-bold border border-green-200 flex items-center justify-center gap-2">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  COMPLETED
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>

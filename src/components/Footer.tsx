@@ -6,7 +6,8 @@ const Footer = () => {
       <div className="container px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-2xl font-bold text-primary mb-4">He&She</h3>
+            <img src="/logo.png" alt="He&She Logo" className="h-10 w-auto mb-4 bg-white/10 p-1 rounded" />
+            <h3 className="text-xl font-bold text-primary mb-2">He&She</h3>
             <p className="text-background/80 mb-4">
               Your trusted partner in finding the perfect PG accommodation across India.
             </p>

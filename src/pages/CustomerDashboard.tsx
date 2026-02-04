@@ -10,9 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { SafetyScore } from "@/components/SafetyScore";
 import { ShareDialog } from "@/components/ShareDialog";
 import { useFavorites } from "@/hooks/useFavorites";
-import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare, Heart, Gift, ArrowLeftRight, Star, Camera, TrendingUp, Zap, Video, Megaphone, AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { Search, Home, Calendar, User, MapPin, Plus, Menu, Phone, Flag, HelpCircle, Settings, MessageSquare, Heart, Gift, ArrowLeftRight, Star, Camera, TrendingUp, Zap, Video, Megaphone, AlertTriangle, AlertCircle, Info, Shield, Clock, ShieldCheck, Share2, IndianRupee, Wifi, Utensils, Users, ChevronRight, Wrench } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReferralsContent } from "./Referrals";
 import bangaloreImg from "@/assets/cities/bangalore.jpg";
 import hyderabadImg from "@/assets/cities/hyderabad.jpg";
 import mumbaiImg from "@/assets/cities/mumbai.jpg";
@@ -32,8 +35,12 @@ const cityImages: Record<string, string> = {
 interface CityData {
   id: string;
   name: string;
+  slug?: string;
+  status: string;
   image_url: string | null;
-  areas: { id: string; name: string }[];
+  tagline?: string | null;
+  property_count: number;
+  areas: { id: string | null; name: string; is_popular?: boolean }[];
 }
 
 const CustomerDashboard = () => {
@@ -49,9 +56,15 @@ const CustomerDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [featuredProperties, setFeaturedProperties] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeBookings: 0, savedProperties: 0, referralRewards: 0 });
-  const { favorites, toggleFavorite } = useFavorites(user?.id);
+  const { favorites, toggleFavorite } = useFavorites();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState("newest");
+  const [showAllCities, setShowAllCities] = useState(false);
+  const [showAllAreas, setShowAllAreas] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [isRaiseTicketOpen, setIsRaiseTicketOpen] = useState(false);
+  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium', property_id: '' });
+  const [isRaising, setIsRaising] = useState(false);
 
   // Cities loaded from API
   const [cities, setCities] = useState<CityData[]>([]);
@@ -67,6 +80,7 @@ const CustomerDashboard = () => {
       fetchFeaturedProperties();
       fetchStats();
       fetchTenantAnnouncements();
+      fetchTickets();
     }
   }, [user]);
 
@@ -98,7 +112,15 @@ const CustomerDashboard = () => {
   const fetchCities = async () => {
     try {
       const data = await api.getCities();
-      setCities(data);
+      const formattedCities: CityData[] = (data || []).map((city: any) => ({
+        id: city.id,
+        name: city.name,
+        image_url: city.image_url || cityImages[city.name] || 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&auto=format&fit=crop&q=60',
+        areas: city.areas || [],
+        status: city.status || 'AVAILABLE',
+        property_count: city.property_count || 0
+      }));
+      setCities(formattedCities);
     } catch (error) {
       console.error('Error fetching cities:', error);
     }
@@ -147,14 +169,41 @@ const CustomerDashboard = () => {
     }
   };
 
+  const fetchTickets = async () => {
+    try {
+      const data = await api.getMyTickets();
+      setTickets(data || []);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+    }
+  };
+
+  const handleRaiseTicket = async () => {
+    if (!newTicket.title || !newTicket.description || !newTicket.property_id) {
+      toast.error("Please fill in all fields and select a property");
+      return;
+    }
+
+    setIsRaising(true);
+    try {
+      await api.raiseTicket(newTicket);
+      toast.success("Maintenance ticket raised successfully!");
+      setIsRaiseTicketOpen(false);
+      setNewTicket({ title: '', description: '', priority: 'medium', property_id: '' });
+      fetchTickets();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to raise ticket");
+    } finally {
+      setIsRaising(false);
+    }
+  };
+
   const fetchPropertiesByLocation = async (city: string, area?: string) => {
     try {
-      const data = await api.getProperties({ city });
+      // Backend handles all filtering via Python SQLAlchemy
+      const data = await api.getProperties({ city, locality: area } as any);
       if (data) {
-        const filtered = area
-          ? data.filter((p: any) => p.address?.toLowerCase().includes(area.toLowerCase()))
-          : data;
-        setProperties(filtered.slice(0, 10));
+        setProperties(data.slice(0, 10));
       }
     } catch (error) {
       console.error('Error fetching properties:', error);
@@ -197,35 +246,42 @@ const CustomerDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col pb-16">
+      {(() => {
+        const activeAnnouncements = announcements.filter(ann => {
+          const now = new Date();
+          const start = ann.start_time ? new Date(ann.start_time) : new Date(ann.created_at);
+          const end = ann.end_time ? new Date(ann.end_time) : new Date(new Date(ann.created_at).getTime() + 24 * 60 * 60 * 1000);
+          return now >= start && now <= end;
+        });
+
+        if (activeAnnouncements.length === 0) return null;
+
+        return (
+          <div className="px-4 py-2 space-y-1 bg-background border-b z-30">
+            {activeAnnouncements.slice(0, 2).map((ann) => (
+              <div key={ann.id} className={`p-3 border-l-4 rounded-md shadow-sm text-xs ${getPriorityStyles(ann.priority)}`}>
+                <div className="flex items-start gap-3">
+                  {getPriorityIcon(ann.priority)}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Megaphone className="h-3 w-3 text-primary" />
+                      <span className="text-[10px] font-medium uppercase text-muted-foreground">Owner Notice</span>
+                      <Badge variant="outline" className="text-[8px] h-4 px-1">{ann.priority}</Badge>
+                    </div>
+                    <h4 className="font-bold mt-0.5">{ann.title}</h4>
+                    <p className="text-muted-foreground line-clamp-1">{ann.message}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         <div className="min-h-full bg-background">
 
-          {/* Announcements Banner - Priority Display */}
-          {announcements.length > 0 && (
-            <div className="px-4 py-3 space-y-2">
-              {announcements.slice(0, 3).map((ann) => (
-                <div key={ann.id} className={`p-4 border-l-4 rounded-lg shadow-sm ${getPriorityStyles(ann.priority)}`}>
-                  <div className="flex items-start gap-3">
-                    {getPriorityIcon(ann.priority)}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Megaphone className="h-4 w-4 text-primary" />
-                        <span className="text-xs font-medium uppercase text-muted-foreground">Owner Notice</span>
-                        <Badge variant="outline" className="text-xs">{ann.priority}</Badge>
-                      </div>
-                      <h4 className="font-semibold mt-1">{ann.title}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">{ann.message}</p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {ann.property_title && <span>{ann.property_title} • </span>}
-                        {new Date(ann.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Header Section */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-4 flex items-center justify-between shadow-sm">
@@ -279,84 +335,256 @@ const CustomerDashboard = () => {
             </Sheet>
           </div>
 
+
+          {/* Main Content - No Tabs */}
+
           {/* Hero Search Section */}
-          <div className="relative px-4 py-12 bg-gradient-to-br from-primary/20 via-accent/10 to-background">
-            <div className="max-w-2xl mx-auto text-center mb-6">
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                Find Your Perfect <span className="text-primary">PG</span> Home
-              </h2>
-              <p className="text-muted-foreground">
-                Discover safe, comfortable, and affordable accommodations
-              </p>
-            </div>
-            <div className="max-w-2xl mx-auto">
-              <div className="flex gap-2 bg-white rounded-xl shadow-lg p-2">
-                <Input
-                  placeholder="Search by city, locality or PG name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="flex-1 border-0 focus-visible:ring-0"
-                />
-                <Button onClick={handleSearch} size="lg" className="px-6">
-                  <Search className="h-5 w-5 mr-2" />
-                  Search
-                </Button>
+          <div className="relative px-4 py-20 overflow-hidden">
+            {/* Background Image with Dark Overlay */}
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 hover:scale-105"
+              style={{ backgroundImage: `url(${heroBg})` }}
+            />
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
+
+            <div className="max-w-4xl mx-auto relative z-10">
+              <div className="text-center mb-8">
+                <h2 className="text-4xl md:text-6xl font-extrabold mb-4 text-white tracking-tight leading-tight">
+                  Find Your Perfect <span className="text-primary">PG</span> Home
+                </h2>
+                <p className="text-lg md:text-xl text-gray-200 font-medium max-w-2xl mx-auto opacity-90">
+                  Discover safe, comfortable, and affordable accommodations in your favorite city
+                </p>
+              </div>
+
+              {/* Feature Badges Below Heading */}
+              <div className="flex flex-wrap items-center justify-center gap-4 mb-12">
+                <div className="bg-white/95 backdrop-blur-sm px-6 py-2.5 rounded-full shadow-xl border border-white/20 flex items-center gap-2.5 transition-all hover:scale-105 group">
+                  <ShieldCheck className="h-5 w-5 text-slate-800" />
+                  <span className="font-bold text-slate-900 text-sm">Verified Listings</span>
+                </div>
+                <div className="bg-white/95 backdrop-blur-sm px-6 py-2.5 rounded-full shadow-xl border border-white/20 flex items-center gap-2.5 transition-all hover:scale-105 group">
+                  <Clock className="h-5 w-5 text-slate-800" />
+                  <span className="font-bold text-slate-900 text-sm">24/7 Support</span>
+                </div>
+                <div className="bg-white/95 backdrop-blur-sm px-6 py-2.5 rounded-full shadow-xl border border-white/20 flex items-center gap-2.5 transition-all hover:scale-105 group">
+                  <Gift className="h-5 w-5 text-slate-800" />
+                  <span className="font-bold text-slate-900 text-sm">Best Price</span>
+                </div>
+              </div>
+
+              <div className="max-w-3xl mx-auto">
+                <div className="flex flex-col md:flex-row gap-3 bg-black/40 backdrop-blur-xl rounded-3xl p-4 border border-white/10 shadow-2xl">
+                  <div className="flex-1 relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
+                    <Input
+                      placeholder="Search by location, area, or landmark..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      className="w-full bg-white/10 border-0 focus-visible:ring-0 text-white placeholder:text-gray-400 text-lg pl-12 py-7 rounded-2xl"
+                    />
+                  </div>
+                  <Button onClick={handleSearch} size="lg" className="px-10 py-7 rounded-2xl font-bold text-lg shadow-lg hover:scale-[1.02] transition-all bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Search className="h-6 w-6 mr-2" />
+                    Search
+                  </Button>
+                </div>
+
+                <div className="mt-10 flex justify-center">
+                  <Button
+                    onClick={() => navigate('/search')}
+                    className="group relative px-10 py-7 overflow-hidden rounded-2xl font-bold text-xl transition-all duration-300 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white shadow-2xl hover:scale-105 active:scale-95"
+                  >
+                    <span className="relative z-10 flex items-center gap-3">
+                      Explore All Properties
+                      <Plus className="h-6 w-6 transition-transform duration-300 group-hover:rotate-90 text-primary" />
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Cities Section */}
-          <div className="px-4 py-8 bg-primary/15">
+          <div className="px-4 py-8 bg-primary/10">
             <h3 className="text-2xl font-bold mb-6 text-center">Choose Your City</h3>
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {cities.map((city) => (
-                <button
-                  key={city.id || city.name}
-                  onClick={() => handleCityClick(city.name)}
-                  className="flex flex-col items-center gap-2 flex-shrink-0"
-                >
-                  <div className={`w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center transition-all shadow-md ${selectedCity === city.name
-                    ? 'ring-4 ring-primary scale-105'
-                    : 'hover:ring-4 hover:ring-accent/50 hover:scale-105'
-                    }`}>
-                    <img
-                      src={city.image_url || cityImages[city.name] || bangaloreImg}
-                      alt={city.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className="text-sm font-semibold">{city.name}</span>
-                </button>
-              ))}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <button className="flex flex-col items-center gap-2 flex-shrink-0">
-                    <div className="w-16 h-16 rounded-full bg-muted hover:bg-accent flex items-center justify-center transition-all">
-                      <Plus className="h-8 w-8 text-muted-foreground" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {cities.slice(0, 4).map((city) => {
+                const isAvailable = city.status === "AVAILABLE";
+                const isComingSoon = city.status === "COMING_SOON";
+
+                return (
+                  <div
+                    key={city.id || city.name}
+                    onClick={() => isAvailable && handleCityClick(city.name)}
+                    className={`group relative rounded-3xl overflow-hidden shadow-lg transition-all duration-500 ${isAvailable ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1' : 'cursor-default opacity-90'} ${selectedCity === city.name ? 'ring-4 ring-primary ring-offset-2' : ''
+                      }`}
+                  >
+                    {/* City Image */}
+                    <div className="relative h-44 overflow-hidden">
+                      <img
+                        src={city.image_url || cityImages[city.name] || bangaloreImg}
+                        alt={city.name}
+                        className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${isComingSoon ? 'grayscale-[0.5] blur-[1px]' : ''}`}
+                      />
+                      {/* Premium Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+
+                      {/* Top Badges */}
+                      <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
+                        {isComingSoon ? (
+                          <Badge className="bg-amber-500/90 backdrop-blur-md text-white border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            Launching Soon
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-primary/90 backdrop-blur-md text-primary-foreground border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            Live Now
+                          </Badge>
+                        )}
+                        {isAvailable && city.property_count > 0 && (
+                          <div className="bg-white/10 backdrop-blur-md px-2 py-1 rounded-full border border-white/20 flex items-center gap-1.5">
+                            <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                            <span className="text-white text-[9px] font-bold">{city.property_count} Active</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* City Info - Bottom Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 p-4 transform transition-transform duration-500">
+                        <p className="text-primary font-bold text-[10px] uppercase tracking-[0.2em] mb-1 opacity-90">{city.tagline || 'Exclusive PGs'}</p>
+                        <h4 className="text-white font-extrabold text-xl md:text-2xl leading-tight mb-1">{city.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3 w-3 text-white/60" />
+                          <span className="text-white/60 text-xs font-medium">{city.areas.length} Locations</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-xs font-medium">Add City</span>
-                  </button>
-                </SheetTrigger>
-                <SheetContent side="bottom">
-                  <SheetHeader>
-                    <SheetTitle>Suggest a New City</SheetTitle>
-                  </SheetHeader>
-                  <div className="flex flex-col gap-4 mt-6">
-                    <p className="text-sm text-muted-foreground">
-                      Can't find your city? Let us know and we'll try to add it!
-                    </p>
-                    <Input
-                      placeholder="Enter city name"
-                      value={newCityName}
-                      onChange={(e) => setNewCityName(e.target.value)}
-                    />
-                    <Button onClick={handleSuggestCity} className="w-full">
-                      Submit Suggestion
-                    </Button>
+
+                    {/* Areas Chips - Hidden by default, shown on hover or for active */}
+                    <div className="p-4 bg-background border-t border-border/50">
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {city.areas.length > 0 ? (
+                          <>
+                            {city.areas.slice(0, 3).map((area) => (
+                              <Badge key={area.name} variant="secondary" className="text-[9px] font-bold px-2 py-0.5 bg-secondary/50 hover:bg-primary/20 transition-colors">
+                                {area.name}
+                              </Badge>
+                            ))}
+                            {city.areas.length > 3 && (
+                              <Badge variant="outline" className="text-[9px] font-medium border-dashed">
+                                +{city.areas.length - 3}
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground italic">New areas added weekly</p>
+                        )}
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant={isAvailable ? "default" : "outline"}
+                        disabled={!isAvailable}
+                        className={`w-full text-xs font-bold rounded-xl transition-all ${isAvailable ? 'shadow-md hover:shadow-lg active:scale-95' : 'opacity-50'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isAvailable) navigate(`/search?city=${city.name.toLowerCase()}`);
+                        }}
+                      >
+                        {isAvailable ? 'Explore City' : 'Notify Me'}
+                        <ChevronRight className="h-3 w-3 ml-1.5" />
+                      </Button>
+                    </div>
                   </div>
-                </SheetContent>
-              </Sheet>
+                );
+              })}
+
+              {/* +X more cities */}
+              {cities.length > 4 && (
+                <Dialog open={showAllCities} onOpenChange={setShowAllCities}>
+                  <DialogTrigger asChild>
+                    <div className="relative rounded-2xl overflow-hidden shadow-lg cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all h-48 group">
+                      {/* Gradient background matching city card style */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-primary/60 to-accent/70" />
+                      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnYyaDR2Mmgtdnp6TTAgNGgydjRoLTJ6bTAgMTJoMnY0aC0yem0wIDEyaDJ2NGgtMnptMCAxMmgydjRoLTJ6bTAgMTJoMnY0aC0yek0xMiAwdjJoNHYtMnptMTIgMHYyaDR2LTJ6bTEyIDB2Mmg0di0yem0xMiAwdjJoNHYtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30" />
+
+                      {/* Content */}
+                      <div className="relative h-full flex flex-col items-center justify-center text-white p-4">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 mb-3 group-hover:scale-110 transition-transform">
+                          <MapPin className="h-6 w-6" />
+                        </div>
+                        <span className="text-4xl font-black mb-1">+{cities.length - 4}</span>
+                        <span className="text-sm font-medium text-white/90">more cities</span>
+                        <div className="mt-3 flex items-center gap-1 text-xs font-medium bg-white/20 px-3 py-1.5 rounded-full group-hover:bg-white/30 transition-colors">
+                          View All <ChevronRight className="h-3 w-3" />
+                        </div>
+                      </div>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none">
+                    <DialogHeader className="p-6 bg-gradient-to-r from-primary/10 to-accent/10 border-b">
+                      <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                        <MapPin className="h-6 w-6 text-primary" />
+                        Explore All Cities
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="p-6 overflow-y-auto max-h-[70vh]">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                        {cities.map((city) => {
+                          const isAvailable = city.status === "AVAILABLE";
+                          return (
+                            <button
+                              key={city.id || city.name}
+                              onClick={() => {
+                                if (isAvailable) {
+                                  handleCityClick(city.name);
+                                  setShowAllCities(false);
+                                }
+                              }}
+                              disabled={!isAvailable}
+                              className={`group relative flex flex-col items-center transition-all ${!isAvailable ? 'opacity-60 cursor-not-allowed' : 'hover:-translate-y-1'}`}
+                            >
+                              <div className={`relative w-full aspect-square rounded-[2rem] overflow-hidden transition-all duration-500 ${selectedCity === city.name ? 'ring-4 ring-primary ring-offset-4' : 'group-hover:ring-4 group-hover:ring-primary/30 group-hover:ring-offset-2'}`}>
+                                <img
+                                  src={city.image_url || cityImages[city.name] || bangaloreImg}
+                                  alt={city.name}
+                                  className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${!isAvailable ? 'grayscale-[0.8] blur-[1px]' : ''}`}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                                {!isAvailable && (
+                                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                                    <Badge className="bg-amber-500/90 backdrop-blur-md text-white border-none text-[10px] font-bold uppercase py-1">
+                                      Soon
+                                    </Badge>
+                                  </div>
+                                )}
+
+                                <div className="absolute bottom-3 left-0 right-0 text-center">
+                                  <span className="text-white font-bold text-sm tracking-wide">{city.name}</span>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-col items-center">
+                                {isAvailable ? (
+                                  <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">
+                                    {city.property_count}+ Properties
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter">
+                                    Register interest
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
 
@@ -365,7 +593,7 @@ const CustomerDashboard = () => {
             <div className="px-4 py-6 bg-secondary/30 border-y border-border">
               <h3 className="font-bold text-lg mb-3">Popular Areas in {selectedCity}</h3>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                {selectedCityData.areas.map((area) => (
+                {selectedCityData.areas.slice(0, 4).map((area) => (
                   <button
                     key={area.id || area.name}
                     onClick={() => handleAreaClick(area.name)}
@@ -377,13 +605,40 @@ const CustomerDashboard = () => {
                     {area.name}
                   </button>
                 ))}
-                <button
-                  className="px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 bg-muted hover:bg-accent transition-all flex items-center gap-1"
-                  onClick={() => toast.info("Area suggestion feature coming soon!")}
-                >
-                  <Plus className="h-4 w-4" />
-                  Suggest Area
-                </button>
+
+                {/* +X more areas chip */}
+                {selectedCityData.areas.length > 4 && (
+                  <Dialog open={showAllAreas} onOpenChange={setShowAllAreas}>
+                    <DialogTrigger asChild>
+                      <button className="px-4 py-2 rounded-full text-sm font-medium flex-shrink-0 bg-primary/20 text-primary hover:bg-primary/30 transition-all flex items-center gap-1">
+                        +{selectedCityData.areas.length - 4} more
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>All Areas in {selectedCity}</DialogTitle>
+                      </DialogHeader>
+                      <div className="flex flex-wrap gap-2 pt-4">
+                        {selectedCityData.areas.map((area) => (
+                          <button
+                            key={area.id || area.name}
+                            onClick={() => {
+                              handleAreaClick(area.name);
+                              setShowAllAreas(false);
+                            }}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedArea === area.name
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted hover:bg-accent'
+                              }`}
+                          >
+                            {area.name}
+                          </button>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             </div>
           )}
@@ -398,68 +653,109 @@ const CustomerDashboard = () => {
                 {properties.map((property) => (
                   <Card
                     key={property.id}
-                    className="overflow-hidden hover:shadow-lg transition-all"
+                    className="group overflow-hidden border-none shadow-md hover:shadow-2xl transition-all duration-500 rounded-[2rem] bg-background/50 backdrop-blur-sm"
                   >
-                    <div className="relative">
+                    <div className="relative aspect-[4/3] overflow-hidden">
                       {property.photos && property.photos.length > 0 ? (
                         <img
                           src={property.photos[0]}
                           alt={property.title}
-                          className="w-full h-40 object-cover cursor-pointer"
+                          className="w-full h-full object-cover cursor-pointer transition-transform duration-700 group-hover:scale-110"
                           onClick={() => navigate(`/properties/${property.id}`)}
                         />
                       ) : (
-                        <div className="w-full h-40 bg-muted flex items-center justify-center">
-                          <Camera className="h-12 w-12 text-muted-foreground" />
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Camera className="h-12 w-12 text-muted-foreground opacity-20" />
                         </div>
                       )}
-                      <div className="absolute top-2 right-2 flex gap-1">
+
+                      {/* Premium Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                      <div className="absolute top-4 right-4 flex gap-2">
                         <ShareDialog propertyId={property.id} title={property.title} />
                         <Button
                           size="icon"
                           variant="secondary"
-                          className="h-8 w-8"
+                          className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/40 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavorite(property.id);
                           }}
                         >
                           <Heart
-                            className={`h-4 w-4 ${favorites.has(property.id) ? 'fill-red-500 text-red-500' : ''
+                            className={`h-5 w-5 ${favorites.has(property.id) ? 'fill-red-500 text-red-500' : 'text-white'
                               }`}
                           />
                         </Button>
                       </div>
-                      {property.instant_booking && (
-                        <Badge className="absolute top-2 left-2 bg-green-600">
-                          <Zap className="h-3 w-3 mr-1" />
-                          Instant Booking
-                        </Badge>
-                      )}
-                      {property.virtual_tour_url && (
-                        <Badge className="absolute bottom-2 left-2 bg-purple-600">
-                          <Video className="h-3 w-3 mr-1" />
-                          Virtual Tour
-                        </Badge>
-                      )}
+
+                      {/* Floating Badges */}
+                      <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
+                        {property.instant_booking && (
+                          <Badge className="bg-green-500/90 backdrop-blur-md text-white border-none py-1 px-3 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                            <Zap className="h-3 w-3 mr-1" />
+                            Instant
+                          </Badge>
+                        )}
+                        {property.virtual_tour_url && (
+                          <Badge className="bg-purple-500/90 backdrop-blur-md text-white border-none py-1 px-3 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                            <Video className="h-3 w-3 mr-1" />
+                            Virtual Tour
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <CardContent className="p-4 cursor-pointer" onClick={() => navigate(`/properties/${property.id}`)}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{property.title}</h4>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {property.locality}, {property.city}
+
+                    <CardContent className={`p-6 cursor-pointer ${property.total_vacancy === 0 ? 'opacity-50' : ''}`} onClick={() => navigate(`/properties/${property.id}`)}>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-black text-lg md:text-xl truncate tracking-tight text-foreground group-hover:text-primary transition-colors">{property.title}</h4>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-medium">
+                            <MapPin className="h-3.5 w-3.5 text-primary" />
+                            {property.locality || property.city}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-primary font-bold text-lg">
-                          ₹{property.monthly_rent?.toLocaleString()}/mo
-                        </p>
-                        {property.safety_score && property.safety_score > 0 && (
-                          <SafetyScore score={property.safety_score} />
-                        )}
+
+                      {/* Amenities Row */}
+                      <div className="flex gap-4 mb-5 text-muted-foreground/60">
+                        <div className="flex items-center gap-1.5 bg-secondary/30 px-2 py-1 rounded-lg">
+                          <Wifi className="h-4 w-4" />
+                          <span className="text-[10px] font-bold">Free WiFi</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-secondary/30 px-2 py-1 rounded-lg">
+                          <Utensils className="h-4 w-4" />
+                          <span className="text-[10px] font-bold">Meal Incl.</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                        {(() => {
+                          const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                          const leadRoom = monthlyRooms.length > 0
+                            ? [...monthlyRooms].sort((a, b) => (a.price || 0) - (b.price || 0))[0]
+                            : null;
+                          return (
+                            <>
+                              <div className="flex flex-col">
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-2xl font-black text-primary tracking-tighter">
+                                    ₹{(leadRoom?.price ?? property.monthly_rent ?? 0).toLocaleString()}
+                                  </span>
+                                  <span className="text-muted-foreground text-[10px] font-bold uppercase">/ month</span>
+                                </div>
+                                <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-[0.05em]">
+                                  Security Deposit: ₹{(leadRoom?.deposit ?? property.deposit ?? 0).toLocaleString()}
+                                </p>
+                              </div>
+
+                              <Button size="icon" className="h-12 w-12 rounded-2xl shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+                                <ChevronRight className="h-6 w-6" />
+                              </Button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </CardContent>
                   </Card>
@@ -572,26 +868,71 @@ const CustomerDashboard = () => {
                             )}
                             {property.virtual_tour_url && (
                               <Badge className="absolute top-2 right-2 bg-purple-600 text-xs">
-                                <Video className="h-2 w-2" />
+                                Virtual Tour
+                              </Badge>
+                            )}
+                            {/* Featured Property Vacancy logic removed as per request */}
+                            {property.total_vacancy !== undefined && property.total_vacancy > 0 && property.total_vacancy <= 2 && (
+                              <Badge className="absolute top-1 left-1 bg-amber-500 text-[8px] h-4">
+                                {property.total_vacancy} left
                               </Badge>
                             )}
                           </div>
-                          <CardContent className="p-3">
-                            <h4 className="font-semibold text-sm truncate">{property.title}</h4>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-2 w-2" />
-                              {property.city}
+                          <CardContent className={`p-4 ${property.total_vacancy === 0 ? 'opacity-60' : ''}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className="font-bold text-base truncate leading-tight flex-1">{property.title}</h4>
+                              <Share2
+                                className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-primary transition-colors ml-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Simplified share logic
+                                  toast.success("Share feature coming soon!");
+                                }}
+                              />
+                            </div>
+
+                            <p className="text-[11px] text-muted-foreground flex items-center gap-1 mb-2 font-medium">
+                              <MapPin className="h-3 w-3 text-primary/70" />
+                              {property.locality || property.city}, {property.city}
                             </p>
-                            <div className="flex items-center justify-between mt-2">
-                              <p className="text-primary font-bold text-sm">
-                                ₹{property.monthly_rent?.toLocaleString()}
-                              </p>
-                              {property.safety_score && property.safety_score >= 4 && (
-                                <div className="flex items-center gap-1 text-xs text-green-600">
-                                  <Star className="h-3 w-3 fill-current" />
-                                  {property.safety_score}
-                                </div>
-                              )}
+
+                            <div className="flex items-end justify-between">
+                              {(() => {
+                                const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                                const leadRoom = monthlyRooms.length > 0
+                                  ? [...monthlyRooms].sort((a, b) => (a.price || 0) - (b.price || 0))[0]
+                                  : null;
+                                return (
+                                  <>
+                                    <div className="flex-1">
+                                      <div className="flex flex-col gap-0.5">
+                                        <div className="flex items-center gap-0.5">
+                                          <p className="text-lg font-black text-primary flex items-center leading-none">
+                                            <IndianRupee className="h-4 w-4 stroke-[3px]" />
+                                            {(leadRoom?.price ?? property.monthly_rent ?? 0).toLocaleString()}
+                                          </p>
+                                          <span className="text-primary text-[10px] font-bold uppercase tracking-wider">/mo</span>
+                                        </div>
+                                        {leadRoom && (
+                                          <span className="text-[10px] text-muted-foreground font-bold">
+                                            {leadRoom.room_type}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1 items-end">
+                                      <span className="text-[10px] text-muted-foreground font-medium">
+                                        Deposit: ₹{(leadRoom?.deposit ?? property.deposit ?? 0).toLocaleString()}
+                                      </span>
+                                      <div className="flex gap-1 text-muted-foreground/40">
+                                        <Wifi className="h-4 w-4" />
+                                        <Utensils className="h-4 w-4" />
+                                      </div>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </CardContent>
                         </Card>
@@ -699,9 +1040,11 @@ const CustomerDashboard = () => {
               </div>
             </div>
           )}
-        </div>
-      </main>
-    </div>
+
+
+        </div >
+      </main >
+    </div >
   );
 };
 

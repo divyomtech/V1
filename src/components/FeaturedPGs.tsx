@@ -126,12 +126,26 @@ const FeaturedPGs = () => {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-2xl font-bold text-primary">
-                      ₹{property.monthly_rent?.toLocaleString()}
-                    </span>
-                    <span className="text-sm text-muted-foreground">/month</span>
-                  </div>
+                  {property.rooms && property.rooms.length > 0 && (
+                    <div>
+                      <span className="text-2xl font-bold text-primary">
+                        ₹{Math.min(...property.rooms.map((r: any) => r.monthly_price || r.price || 0)).toLocaleString()}
+                      </span>
+                      <span className="text-sm text-muted-foreground">/month</span>
+                      {(() => {
+                        const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                        const leadRoom = monthlyRooms.length > 0
+                          ? [...monthlyRooms].sort((a, b) => (b.bed_count || 0) - (a.bed_count || 0))[0]
+                          : null;
+
+                        return leadRoom ? (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+                            {leadRoom.room_type}
+                          </p>
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
                 </div>
               </CardContent>
 

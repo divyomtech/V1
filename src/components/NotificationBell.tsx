@@ -100,7 +100,7 @@ export const NotificationBell = () => {
                 No notifications yet
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 pr-4">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}

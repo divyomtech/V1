@@ -60,6 +60,8 @@ const Profile = () => {
     aadhar_back_url: "",
     college_company_id_url: "",
     pan_card_url: "",
+    dl_front_url: "",
+    dl_back_url: "",
     gst_doc_url: "",
     profile_verification_status: "pending",
     about: "",
@@ -72,7 +74,12 @@ const Profile = () => {
     mother_tongue: "",
     bank_account_number: "",
     bank_ifsc_code: "",
-    bank_name: ""
+    bank_name: "",
+    // Owner availability
+    owner_available: true,
+    available_from: "09:00",
+    available_to: "21:00",
+    available_days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   });
 
   // Track original phone number to detect changes
@@ -117,6 +124,8 @@ const Profile = () => {
           date_of_birth: data.date_of_birth || "",
           aadhar_front_url: data.aadhar_front_url || "",
           aadhar_back_url: data.aadhar_back_url || "",
+          dl_front_url: data.dl_front_url || "",
+          dl_back_url: data.dl_back_url || "",
           college_company_id_url: data.college_company_id_url || "",
           pan_card_url: data.pan_card_url || "",
           gst_doc_url: data.gst_doc_url || "",
@@ -131,7 +140,12 @@ const Profile = () => {
           mother_tongue: data.mother_tongue || "",
           bank_account_number: data.bank_account_number || "",
           bank_ifsc_code: data.bank_ifsc_code || "",
-          bank_name: data.bank_name || ""
+          bank_name: data.bank_name || "",
+          // Owner availability
+          owner_available: data.owner_available !== false,
+          available_from: data.available_from || "09:00",
+          available_to: data.available_to || "21:00",
+          available_days: data.available_days || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         });
 
         // Load notification settings from API
@@ -187,6 +201,8 @@ const Profile = () => {
         gst_doc_url: profile.gst_doc_url,
         aadhar_front_url: profile.aadhar_front_url,
         aadhar_back_url: profile.aadhar_back_url,
+        dl_front_url: profile.dl_front_url,
+        dl_back_url: profile.dl_back_url,
         college_company_id_url: profile.college_company_id_url,
 
         // Notification settings
@@ -203,9 +219,15 @@ const Profile = () => {
         updateData.display_name = profile.display_name;
         updateData.business_name = profile.business_name;
         updateData.about = profile.about;
+        updateData.languages_known = profile.languages_known;
         updateData.bank_account_number = profile.bank_account_number;
         updateData.bank_ifsc_code = profile.bank_ifsc_code;
         updateData.bank_name = profile.bank_name;
+        // Owner availability
+        updateData.owner_available = profile.owner_available;
+        updateData.available_from = profile.available_from;
+        updateData.available_to = profile.available_to;
+        updateData.available_days = profile.available_days;
       }
 
       // Add customer-specific fields
@@ -549,6 +571,97 @@ const Profile = () => {
                         rows={4}
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="languages_known">Languages Spoken</Label>
+                      <Input
+                        id="languages_known"
+                        value={profile.languages_known?.join(', ')}
+                        onChange={(e) => setProfile({ ...profile, languages_known: e.target.value.split(',').map(lang => lang.trim()).filter(Boolean) })}
+                        placeholder="English, Hindi, Telugu, Tamil..."
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Enter languages separated by commas. These will be displayed on your property listings.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Owner Availability Settings */}
+              {isOwner && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Availability Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>Currently Available</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Toggle to show tenants if you're available for contact
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="owner_available"
+                          checked={profile.owner_available}
+                          onChange={(e) => setProfile({ ...profile, owner_available: e.target.checked })}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="owner_available" className={profile.owner_available ? "text-green-600" : "text-red-500"}>
+                          {profile.owner_available ? "Available" : "Not Available"}
+                        </Label>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="available_from">Available From</Label>
+                        <Input
+                          id="available_from"
+                          type="time"
+                          value={profile.available_from}
+                          onChange={(e) => setProfile({ ...profile, available_from: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="available_to">Available To</Label>
+                        <Input
+                          id="available_to"
+                          type="time"
+                          value={profile.available_to}
+                          onChange={(e) => setProfile({ ...profile, available_to: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Available Days</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                          <Badge
+                            key={day}
+                            variant={profile.available_days?.includes(day) ? "default" : "outline"}
+                            className="cursor-pointer"
+                            onClick={() => {
+                              const days = profile.available_days || [];
+                              if (days.includes(day)) {
+                                setProfile({ ...profile, available_days: days.filter((d: string) => d !== day) });
+                              } else {
+                                setProfile({ ...profile, available_days: [...days, day] });
+                              }
+                            }}
+                          >
+                            {day}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Click days to select/deselect. This will be shown to tenants on your host profile.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -871,6 +984,106 @@ const Profile = () => {
                           >
                             <Upload className="h-4 w-4 mr-2" />
                             {uploadingDoc === 'aadhar_back' ? 'Uploading...' : 'Upload'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>PAN Card</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        {profile.pan_card_url ? (
+                          <div className="space-y-2">
+                            <Check className="h-8 w-8 mx-auto text-green-500" />
+                            <p className="text-sm text-green-600">PAN Card uploaded</p>
+                            <a href={getImageUrl(profile.pan_card_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View</a>
+                          </div>
+                        ) : (
+                          <>
+                            <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mb-2">Upload PAN Card</p>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          id="pan-card-upload"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => handleDocumentUpload(e, 'pan_card', 'pan_card_url')}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingDoc === 'pan_card'}
+                          onClick={() => document.getElementById('pan-card-upload')?.click()}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadingDoc === 'pan_card' ? 'Uploading...' : 'Upload'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Driving License</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                          {profile.dl_front_url ? (
+                            <div className="space-y-2">
+                              <Check className="h-8 w-8 mx-auto text-green-500" />
+                              <p className="text-sm text-green-600">Front Side uploaded</p>
+                              <a href={getImageUrl(profile.dl_front_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View</a>
+                            </div>
+                          ) : (
+                            <>
+                              <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground mb-2">Front Side</p>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            id="dl-front-upload"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => handleDocumentUpload(e, 'dl_front', 'dl_front_url')}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={uploadingDoc === 'dl_front'}
+                            onClick={() => document.getElementById('dl-front-upload')?.click()}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {uploadingDoc === 'dl_front' ? 'Uploading...' : 'Upload'}
+                          </Button>
+                        </div>
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                          {profile.dl_back_url ? (
+                            <div className="space-y-2">
+                              <Check className="h-8 w-8 mx-auto text-green-500" />
+                              <p className="text-sm text-green-600">Back Side uploaded</p>
+                              <a href={getImageUrl(profile.dl_back_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">View</a>
+                            </div>
+                          ) : (
+                            <>
+                              <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground mb-2">Back Side</p>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            id="dl-back-upload"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => handleDocumentUpload(e, 'dl_back', 'dl_back_url')}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={uploadingDoc === 'dl_back'}
+                            onClick={() => document.getElementById('dl-back-upload')?.click()}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {uploadingDoc === 'dl_back' ? 'Uploading...' : 'Upload'}
                           </Button>
                         </div>
                       </div>

@@ -9,7 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Calendar, IndianRupee, MapPin, Home, CreditCard, Loader2, CheckCircle, Copy, KeyRound, RefreshCw, LogOut } from 'lucide-react';
+import { Calendar, IndianRupee, MapPin, Home, CreditCard, Loader2, CheckCircle, Copy, KeyRound, RefreshCw, LogOut, Clock } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 // Declare Razorpay on window
 declare global {
@@ -20,9 +22,17 @@ declare global {
 
 interface Booking {
   id: string;
+  property_id: string;
   status: string;
   start_date: string;
   amount: number;
+  rent_paid?: boolean;
+  deposit_paid?: boolean;
+  security_deposit?: number;
+  maintenance_charge?: number;
+  stay_type?: string;
+  duration_days?: number;
+  end_date?: string;
   created_at: string;
   property?: {
     title: string;
@@ -33,6 +43,8 @@ interface Booking {
   room?: {
     room_type: string;
     bed_count: number;
+    room_description?: string;
+    price?: number;
   };
 }
 
@@ -62,6 +74,13 @@ const Bookings = () => {
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [regeneratingTxnId, setRegeneratingTxnId] = useState<string | null>(null);
   const [vacatingBookingId, setVacatingBookingId] = useState<string | null>(null);
+  const [showOTPSection, setShowOTPSection] = useState(false);
+
+  // Extension State
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [extendingBooking, setExtendingBooking] = useState<Booking | null>(null);
+  const [extraDays, setExtraDays] = useState(1);
+  const [extending, setExtending] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -130,7 +149,7 @@ const Bookings = () => {
     }
   };
 
-  const handlePayment = async (booking: Booking) => {
+  const handlePayment = async (booking: Booking, customAmount?: number, paymentType: string = 'total') => {
     // Ensure Razorpay is loaded
     if (!window.Razorpay) {
       try {
@@ -146,11 +165,11 @@ const Bookings = () => {
       }
     }
 
-    setPayingBookingId(booking.id);
+    const amountToPay = customAmount || booking.amount;
 
     try {
       // Step 1: Initiate wallet payment (creates Razorpay order)
-      const paymentOrder = await api.initiateWalletPayment(booking.id, booking.amount);
+      const paymentOrder = await api.initiateWalletPayment(booking.id, amountToPay, paymentType);
 
       // Step 2: Open Razorpay checkout
       const options = {
@@ -175,10 +194,11 @@ const Bookings = () => {
               setPaymentOtp({
                 otp: verifyResult.otp,
                 ownerName: verifyResult.owner_name || 'Property Owner',
-                amount: verifyResult.amount || booking.amount,
+                amount: verifyResult.amount || amountToPay,
                 transactionId: verifyResult.transaction_id,
               });
               setOtpDialogOpen(true);
+              setShowOTPSection(true);
             } else {
               toast({
                 title: 'Payment Successful!',
@@ -236,6 +256,28 @@ const Bookings = () => {
     }
   };
 
+  const handleExtendStay = async () => {
+    if (!extendingBooking) return;
+    setExtending(true);
+    try {
+      await api.extendBooking(extendingBooking.id, extraDays);
+      toast({
+        title: 'Stay Extended!',
+        description: `Your stay has been extended by ${extraDays} more days.`,
+      });
+      setExtendDialogOpen(false);
+      fetchBookings();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Extension Failed',
+        description: error.message,
+      });
+    } finally {
+      setExtending(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       requested: 'bg-yellow-500',
@@ -274,9 +316,17 @@ const Bookings = () => {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">My Bookings</h1>
 
-          {/* Pending Payments Section - Show if customer has pending OTP verifications */}
-          {pendingPayments.length > 0 && (
-            <Card className="mb-8 border-2 border-amber-500/50 bg-amber-50/50 dark:bg-amber-900/10">
+          {/* Pending Payments Section - Show if customer has pending OTP verifications and has just made a payment */}
+          {showOTPSection && pendingPayments.length > 0 && (
+            <Card className="mb-8 border-2 border-amber-500/50 bg-amber-50/50 dark:bg-amber-900/10 relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-2 h-8 w-8 text-amber-600 hover:bg-amber-100"
+                onClick={() => setShowOTPSection(false)}
+              >
+                <LogOut className="h-4 w-4 rotate-180" />
+              </Button>
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <KeyRound className="h-5 w-5 text-amber-600" />
@@ -382,9 +432,16 @@ const Bookings = () => {
                                     {booking.property?.locality || 'N/A'}, {booking.property?.city || 'N/A'}
                                   </div>
                                   {booking.room && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {booking.room.room_type} • {booking.room.bed_count} beds
-                                    </p>
+                                    <div className="mt-1">
+                                      <p className="text-sm text-muted-foreground">
+                                        {booking.room.room_type} • {booking.room.bed_count} beds
+                                      </p>
+                                      {booking.room.room_description && (
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                          {booking.room.room_description}
+                                        </p>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                                 <Badge className={getStatusColor(booking.status)}>
@@ -413,31 +470,59 @@ const Bookings = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => navigate(`/bookings/${booking.id}`)}
+                                  onClick={() => navigate(`/properties/${booking.property_id}`)}
                                 >
                                   View Details
                                 </Button>
 
-                                {/* Pay Now Button - Show for accepted bookings */}
-                                {booking.status === 'accepted' && (
-                                  <Button
-                                    size="sm"
-                                    className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => handlePayment(booking)}
-                                    disabled={payingBookingId === booking.id}
-                                  >
-                                    {payingBookingId === booking.id ? (
-                                      <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Processing...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CreditCard className="h-4 w-4 mr-2" />
-                                        Pay Now
-                                      </>
+                                {/* Payment Buttons - Show for accepted or checked_in bookings if not fully paid */}
+                                {(booking.status === 'accepted' || booking.status === 'checked_in') && (
+                                  <div className="flex flex-wrap gap-2 mt-2 w-full">
+                                    {/* Show Total button only if NEITHER are paid */}
+                                    {!booking.rent_paid && !booking.deposit_paid && (
+                                      <Button
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700 flex-1"
+                                        onClick={() => handlePayment(booking, (booking as any).amount + ((booking as any).security_deposit || 0) + ((booking as any).maintenance_charge || 0), 'total')}
+                                        disabled={payingBookingId === booking.id}
+                                      >
+                                        {payingBookingId === booking.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <CreditCard className="h-4 w-4 mr-2" />
+                                            Pay Total (₹{((booking as any).amount + ((booking as any).security_deposit || 0) + ((booking as any).maintenance_charge || 0)).toLocaleString()})
+                                          </>
+                                        )}
+                                      </Button>
                                     )}
-                                  </Button>
+
+                                    {/* Show Rent button if not paid */}
+                                    {!booking.rent_paid && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-green-600 text-green-700 hover:bg-green-50 flex-1"
+                                        onClick={() => handlePayment(booking, (booking as any).amount + ((booking as any).maintenance_charge || 0), 'rent')}
+                                        disabled={payingBookingId === booking.id}
+                                      >
+                                        Pay Rent/m (₹{((booking as any).amount + ((booking as any).maintenance_charge || 0)).toLocaleString()})
+                                      </Button>
+                                    )}
+
+                                    {/* Show Deposit button if not paid */}
+                                    {!booking.deposit_paid && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-blue-600 text-blue-700 hover:bg-blue-50 flex-1"
+                                        onClick={() => handlePayment(booking, (booking as any).security_deposit || 0, 'deposit')}
+                                        disabled={payingBookingId === booking.id}
+                                      >
+                                        Pay Deposit (₹{((booking as any).security_deposit || 0).toLocaleString()})
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
 
                                 {booking.status === 'requested' && (
@@ -465,48 +550,64 @@ const Bookings = () => {
                                   </Button>
                                 )}
 
-                                {/* Vacate PG Button - Show for paid/active bookings */}
-                                {['paid', 'active', 'checked-in'].includes(booking.status) && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="border-orange-500 text-orange-600 hover:bg-orange-50"
-                                    disabled={vacatingBookingId === booking.id}
-                                    onClick={async () => {
-                                      if (!confirm('Are you sure you want to vacate this PG? The owner will be notified about your request.')) {
-                                        return;
-                                      }
-                                      setVacatingBookingId(booking.id);
-                                      try {
-                                        await api.vacateBooking(booking.id);
-                                        toast({
-                                          title: 'Vacate Request Sent',
-                                          description: 'The property owner has been notified about your vacate request.',
-                                        });
-                                        fetchBookings();
-                                      } catch (error: any) {
-                                        toast({
-                                          variant: 'destructive',
-                                          title: 'Error',
-                                          description: error.message,
-                                        });
-                                      } finally {
-                                        setVacatingBookingId(null);
-                                      }
-                                    }}
-                                  >
-                                    {vacatingBookingId === booking.id ? (
-                                      <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Processing...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <LogOut className="h-4 w-4 mr-2" />
-                                        Vacate PG
-                                      </>
+                                {['paid', 'active', 'checked_in'].includes(booking.status) && (
+                                  <>
+                                    {booking.stay_type === 'daily' && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-primary text-primary hover:bg-primary/5"
+                                        onClick={() => {
+                                          setExtendingBooking(booking);
+                                          setExtraDays(1);
+                                          setExtendDialogOpen(true);
+                                        }}
+                                      >
+                                        <RefreshCw className="h-4 w-4 mr-2" />
+                                        Extend Stay
+                                      </Button>
                                     )}
-                                  </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                                      disabled={vacatingBookingId === booking.id}
+                                      onClick={async () => {
+                                        if (!confirm('Are you sure you want to vacate this PG? The owner will be notified about your request.')) {
+                                          return;
+                                        }
+                                        setVacatingBookingId(booking.id);
+                                        try {
+                                          await api.vacateBooking(booking.id);
+                                          toast({
+                                            title: 'Vacate Request Sent',
+                                            description: 'The property owner has been notified about your vacate request.',
+                                          });
+                                          fetchBookings();
+                                        } catch (error: any) {
+                                          toast({
+                                            variant: 'destructive',
+                                            title: 'Error',
+                                            description: error.message,
+                                          });
+                                        } finally {
+                                          setVacatingBookingId(null);
+                                        }
+                                      }}
+                                    >
+                                      {vacatingBookingId === booking.id ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Processing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <LogOut className="h-4 w-4 mr-2" />
+                                          Vacate PG
+                                        </>
+                                      )}
+                                    </Button>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -605,6 +706,73 @@ const Bookings = () => {
             </Button>
             <Button onClick={() => setOtpDialogOpen(false)} className="flex-1">
               Got it, I'll share the OTP
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Extend Stay Dialog */}
+      <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-primary" />
+              Extend Your Stay
+            </DialogTitle>
+            <DialogDescription>
+              Add more days to your current booking at {extendingBooking?.property?.title}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6 space-y-6">
+            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl border border-primary/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Plan</p>
+                  <p className="font-semibold">{extendingBooking?.duration_days} Days Daily Stay</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Checkout</p>
+                <p className="font-semibold">{extendingBooking?.end_date ? new Date(extendingBooking.end_date).toLocaleDateString() : 'N/A'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-sm font-semibold">How many extra days?</Label>
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" onClick={() => setExtraDays(Math.max(1, extraDays - 1))}>-</Button>
+                <div className="flex-1 flex flex-col items-center">
+                  <span className="text-3xl font-bold">{extraDays}</span>
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase">Extra Days</span>
+                </div>
+                <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" onClick={() => setExtraDays(extraDays + 1)}>+</Button>
+              </div>
+
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Price per day:</span>
+                  <span className="font-semibold">₹{extendingBooking ? Math.round(extendingBooking.amount / (extendingBooking.duration_days || 1)) : 0}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold text-primary italic">
+                  <span>Additional Amount:</span>
+                  <span>₹{extendingBooking ? Math.round((extendingBooking.amount / (extendingBooking.duration_days || 1)) * extraDays) : 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setExtendDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleExtendStay}
+              className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+              disabled={extending}
+            >
+              {extending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : 'Confirm Extension'}
             </Button>
           </DialogFooter>
         </DialogContent>

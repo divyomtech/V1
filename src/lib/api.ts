@@ -72,14 +72,17 @@ export interface Property {
     amenities?: string[];
     monthly_rent: number;
     deposit: number;
+    maintenance_charge?: number;
     rules?: string;
     photos?: string[];
     status: string;
     available_from?: string;
     instant_booking?: boolean;
     virtual_tour_url?: string;
+    is_verified?: boolean;
     safety_score?: number;
     created_at: string;
+    rooms?: Room[];
 }
 
 export interface PropertyDetail extends Property {
@@ -88,6 +91,7 @@ export interface PropertyDetail extends Property {
         name: string;
         phone?: string;
         profile_photo?: string;
+        languages_known?: string[];
     };
     average_rating?: number;
     review_count: number;
@@ -97,9 +101,26 @@ export interface Room {
     id: string;
     property_id: string;
     room_type: string;
+    floor_number?: number;
+    room_number?: string;
     bed_count: number;
     price: number;
+    deposit?: number;
+    monthly_price?: number;
+    daily_price?: number;
+    security_deposit?: number;
+    vacancy_count?: number;
     is_available: boolean;
+    stay_type?: 'monthly' | 'daily';
+    min_stay?: number;
+    is_extension_allowed?: boolean;
+    complementaries?: string[];
+    room_photos?: string[];
+    room_description?: string;
+    area_sqft?: number;
+    width_ft?: number;
+    has_ventilation?: boolean;
+    caption?: string;
 }
 
 export interface Favorite {
@@ -110,8 +131,36 @@ export interface Favorite {
     property?: Property;
 }
 
+export interface Booking {
+    id: string;
+    property_id: string;
+    room_id?: string;
+    customer_id: string;
+    owner_id: string;
+    start_date: string;
+    end_date?: string;
+    amount: number;
+    security_deposit: number;
+    maintenance_charge: number;
+    status: string;
+    rent_paid: boolean;
+    deposit_paid: boolean;
+    maintenance_paid: boolean;
+    stay_type?: string;
+    duration_days?: number;
+    created_at: string;
+    updated_at: string;
+    property?: Property;
+    room?: Room;
+}
+
 // Auth API
 export const api = {
+    // Generic request method for custom API calls
+    async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+        return request<T>(endpoint, options);
+    },
+
     // Auth
     async signup(email: string, password: string, name: string, phone: string, role: string): Promise<{
         message: string;
@@ -161,6 +210,13 @@ export const api = {
         });
     },
 
+    async resetPasswordConfirm(token: string, newPassword: string): Promise<{ message: string }> {
+        return request('/api/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ token, new_password: newPassword }),
+        });
+    },
+
     // Cities
     async getCities(): Promise<{ id: string; name: string; image_url: string | null; areas: { id: string; name: string }[] }[]> {
         return request('/api/cities');
@@ -191,6 +247,30 @@ export const api = {
         return request<PropertyDetail>(`/api/properties/${id}`);
     },
 
+    async getPropertyAvailability(propertyId: string, startDate: string, endDate: string): Promise<{
+        room_id: string;
+        room_type: string;
+        total_beds: number;
+        booked_beds: number;
+        available_beds: number;
+        is_available: boolean;
+    }[]> {
+        return request(`/api/properties/${propertyId}/availability?start_date=${startDate}&end_date=${endDate}`);
+    },
+
+    async getRoomAvailability(propertyId: string, roomId: string, startDate: string, endDate: string): Promise<{
+        room_id: string;
+        room_type: string;
+        total_beds: number;
+        booked_beds: number;
+        available_beds: number;
+        is_available: boolean;
+        price: number;
+        stay_type: string;
+    }> {
+        return request(`/api/properties/${propertyId}/rooms/${roomId}/availability?start_date=${startDate}&end_date=${endDate}`);
+    },
+
     async createProperty(data: Partial<Property>): Promise<Property> {
         return request<Property>('/api/properties', {
             method: 'POST',
@@ -215,6 +295,26 @@ export const api = {
         });
     },
 
+    async createRoom(propertyId: string, data: Partial<Room>): Promise<Room> {
+        return request<Room>(`/api/properties/${propertyId}/rooms`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async updateRoom(propertyId: string, roomId: string, data: Partial<Room>): Promise<Room> {
+        return request<Room>(`/api/properties/${propertyId}/rooms/${roomId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteRoom(propertyId: string, roomId: string): Promise<{ message: string }> {
+        return request(`/api/properties/${propertyId}/rooms/${roomId}`, {
+            method: 'DELETE',
+        });
+    },
+
     // Favorites
     async getFavorites(): Promise<Favorite[]> {
         return request<Favorite[]>('/api/favorites');
@@ -233,13 +333,13 @@ export const api = {
     },
 
     // Bookings
-    async getBookings(): Promise<any[]> {
-        return request('/api/bookings');
+    async getBookings(): Promise<Booking[]> {
+        return request<Booking[]>('/api/bookings');
     },
 
-    async getAllBookings(status?: string): Promise<any[]> {
+    async getAllBookings(status?: string): Promise<Booking[]> {
         const query = status ? `?status_filter=${status}` : '';
-        return request(`/api/bookings/all${query}`);
+        return request<Booking[]>(`/api/bookings/all${query}`);
     },
 
     async createBooking(data: {
@@ -247,8 +347,10 @@ export const api = {
         room_id?: string;
         start_date: string;
         end_date?: string;
-    }): Promise<any> {
-        return request('/api/bookings', {
+        stay_type?: string;
+        duration_days?: number;
+    }): Promise<Booking> {
+        return request<Booking>('/api/bookings', {
             method: 'POST',
             body: JSON.stringify(data),
         });
@@ -271,6 +373,13 @@ export const api = {
     async vacateBooking(bookingId: string): Promise<any> {
         return request(`/api/bookings/${bookingId}/vacate`, {
             method: 'POST',
+        });
+    },
+
+    async extendBooking(bookingId: string, extraDays: number): Promise<Booking> {
+        return request<Booking>(`/api/bookings/${bookingId}/extend`, {
+            method: 'POST',
+            body: JSON.stringify({ extra_days: extraDays }),
         });
     },
 
@@ -448,6 +557,27 @@ export const api = {
         return request(`/api/owner/tenants${query}`);
     },
 
+    async verifyTenant(tenantId: string, status: 'approved' | 'rejected' | 'pending'): Promise<{ message: string }> {
+        return request(`/api/owner/tenants/${tenantId}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({ status }),
+        });
+    },
+
+    // ========== Host Profile APIs ==========
+
+    async getHostProfile(hostId: string): Promise<any> {
+        return request(`/api/host/${hostId}`);
+    },
+
+    async getHostProperties(hostId: string): Promise<any[]> {
+        return request(`/api/host/${hostId}/properties`);
+    },
+
+    async getHostReviews(hostId: string): Promise<any[]> {
+        return request(`/api/host/${hostId}/reviews`);
+    },
+
     // ========== Roommate Matching APIs ==========
 
     async getRoommateProfile(): Promise<any> {
@@ -600,7 +730,7 @@ export const api = {
         return request(`/api/wallet/transactions?limit=${limit}`);
     },
 
-    async initiateWalletPayment(bookingId: string, amount: number): Promise<{
+    async initiateWalletPayment(bookingId: string, amount: number, paymentType: string = 'total'): Promise<{
         transaction_id: string;
         razorpay_order_id: string;
         amount: number;
@@ -610,7 +740,7 @@ export const api = {
     }> {
         return request('/api/wallet/initiate-payment', {
             method: 'POST',
-            body: JSON.stringify({ booking_id: bookingId, amount }),
+            body: JSON.stringify({ booking_id: bookingId, amount, payment_type: paymentType }),
         });
     },
 
@@ -697,6 +827,55 @@ export const api = {
 
     async deleteAnnouncement(announcementId: string): Promise<{ message: string }> {
         return request(`/api/announcements/${announcementId}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // Maintenance Tickets
+    async raiseTicket(ticketData: any): Promise<any> {
+        return request('/api/maintenance/tickets', {
+            method: 'POST',
+            body: JSON.stringify(ticketData),
+        });
+    },
+
+    async getMyTickets(): Promise<any[]> {
+        return request('/api/maintenance/tickets/me');
+    },
+
+    async getOwnerTickets(propertyId?: string): Promise<any[]> {
+        const query = propertyId ? `?property_id=${propertyId}` : '';
+        return request(`/api/maintenance/tickets/owner${query}`);
+    },
+
+    async updateTicket(ticketId: string, updateData: any): Promise<any> {
+        return request(`/api/maintenance/tickets/${ticketId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updateData),
+        });
+    },
+
+    // Admin Announcements
+    async createAdminAnnouncement(data: {
+        title: string;
+        message: string;
+        target_audience: string;
+        priority: string;
+        start_time?: string;
+        end_time?: string;
+    }): Promise<any> {
+        return request('/api/admin/announcements', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async getAdminAnnouncements(): Promise<any[]> {
+        return request('/api/admin/announcements');
+    },
+
+    async deleteAdminAnnouncement(announcementId: string): Promise<any> {
+        return request(`/api/admin/announcements/${announcementId}`, {
             method: 'DELETE',
         });
     },

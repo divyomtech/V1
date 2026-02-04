@@ -38,14 +38,15 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpPhone, setOtpPhone] = useState('');
-  const [pendingEmail, setPendingEmail] = useState('');
   const [pendingRole, setPendingRole] = useState<'customer' | 'owner' | 'admin'>('customer');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [canResendOtp, setCanResendOtp] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(30);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { signUp, verifyEmail, resendOtp, signIn, signOut, resetPassword, user, loading, role } = useAuth();
+  const { signUp, verifyEmail, resendOtp, signIn, signOut, resetPassword, confirmResetPassword, user, loading, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -55,7 +56,11 @@ const Auth = () => {
     const type = hashParams.get('type');
 
     if (type === 'recovery') {
-      setView('reset-password');
+      const token = hashParams.get('token');
+      if (token) {
+        setResetToken(token);
+        setView('reset-password');
+      }
     }
 
     // Check for login mode in query string
@@ -283,23 +288,34 @@ const Auth = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       toast({
         variant: "destructive",
         title: "Password too short",
-        description: "Password must be at least 6 characters",
+        description: "Password must be at least 8 characters",
       });
       return;
     }
 
-    // Password reset via token needs backend API implementation
-    toast({
-      title: "Password reset",
-      description: "Password reset functionality requires backend implementation.",
-    });
-    setNewPassword('');
-    setConfirmPassword('');
-    setView('login');
+    if (!resetToken) {
+      toast({
+        variant: "destructive",
+        title: "Reset token missing",
+        description: "The password reset link is invalid or has expired.",
+      });
+      return;
+    }
+
+    const result = await confirmResetPassword(resetToken, newPassword);
+    if (!result.error) {
+      setNewPassword('');
+      setConfirmPassword('');
+      setView('login');
+      // Token is used once, clear it
+      setResetToken(null);
+      // Clean URL hash
+      window.location.hash = '';
+    }
   };
 
   // Welcome Screen
@@ -308,7 +324,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full justify-between">
           {/* Header */}
-          <div className="pt-4">
+          <div className="pt-4 text-center">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
               Find your perfect PG — clean, safe, affordable
@@ -366,7 +382,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
               {loginMode === 'admin' ? 'Admin Portal — authorized access only' : loginMode === 'owner' ? 'Owner Portal — manage your properties' : 'Welcome back! Please login to continue'}
@@ -482,7 +498,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
               Enter your email or mobile number to reset your password
@@ -531,7 +547,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
               Enter the 6-digit code sent to your phone
@@ -616,7 +632,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
               Enter the 6-digit code sent to your email
@@ -685,7 +701,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-5xl font-bold mb-3">He&She</h1>
             <p className="text-base text-muted-foreground">
               Create your new password
@@ -756,7 +772,7 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <div className="flex-1 flex flex-col px-6 py-8 max-w-md mx-auto w-full">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 text-center">
           <h1 className="text-5xl font-bold mb-3">He&She</h1>
           <p className="text-base text-muted-foreground">
             Create your account to get started

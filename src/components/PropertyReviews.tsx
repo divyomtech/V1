@@ -128,13 +128,14 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                   <Star
                     key={star}
                     className={`h-5 w-5 ${star <= Math.round(parseFloat(averageRating))
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-gray-300'
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
                       }`}
                   />
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">{reviews.length} reviews</p>
+              <p className="text-xs text-muted-foreground">Sorted by highest rating</p>
             </div>
           </div>
 
@@ -154,8 +155,8 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                       >
                         <Star
                           className={`h-8 w-8 cursor-pointer ${star <= rating
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300'
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
                             }`}
                         />
                       </button>
@@ -195,14 +196,14 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
                   <Avatar>
-                    <AvatarImage src={review.profiles?.profile_photo || ''} />
+                    <AvatarImage src={review.user_photo || ''} />
                     <AvatarFallback>
                       <User className="h-5 w-5" />
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold">{review.profiles?.name || 'Anonymous'}</h4>
+                      <h4 className="font-semibold">{review.user_name || 'Anonymous'}</h4>
                       <span className="text-sm text-muted-foreground">
                         {new Date(review.created_at).toLocaleDateString()}
                       </span>
@@ -212,8 +213,8 @@ export const PropertyReviews = ({ propertyId }: PropertyReviewsProps) => {
                         <Star
                           key={star}
                           className={`h-4 w-4 ${star <= review.rating
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300'
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
                             }`}
                         />
                       ))}

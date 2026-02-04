@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MapPin, IndianRupee, Camera, Wifi, Utensils } from 'lucide-react';
+import { Heart, MapPin, IndianRupee, Camera, Wifi, Utensils, Share2, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Favorites = () => {
@@ -114,33 +114,76 @@ const Favorites = () => {
                       <Heart className="h-4 w-4 fill-red-500 text-red-500" />
                     </Button>
                   </div>
-                  <CardContent className="p-4">
-                    <h3
-                      className="font-semibold text-lg mb-2 truncate cursor-pointer"
-                      onClick={() => navigate(`/properties/${property.id}`)}
-                    >
-                      {property.title}
-                    </h3>
-                    <div className="flex items-center text-sm text-muted-foreground mb-3">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {property.locality}, {property.city}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center font-semibold text-lg">
-                        <IndianRupee className="h-4 w-4" />
-                        {property.monthly_rent.toLocaleString()}/mo
+                  <CardContent className="p-4 flex flex-col">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3
+                          className="font-bold text-lg leading-tight truncate cursor-pointer"
+                          onClick={() => navigate(`/properties/${property.id}`)}
+                        >
+                          {property.title}
+                        </h3>
+                        <div
+                          className="flex items-center text-[11px] text-muted-foreground mt-0.5 font-medium cursor-pointer"
+                          onClick={() => navigate(`/properties/${property.id}`)}
+                        >
+                          <MapPin className="h-3 w-3 mr-1 text-primary/70" />
+                          {property.locality}, {property.city}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        {property.amenities?.includes('wifi') && (
-                          <Wifi className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        {property.amenities?.includes('food') && (
-                          <Utensils className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 -mt-1 -mr-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast({
+                            title: "Coming Soon",
+                            description: "Share feature coming soon!",
+                          });
+                        }}
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-2">
-                      Deposit: ₹{property.deposit?.toLocaleString() || 'N/A'}
+
+                    <div className="flex items-end justify-between mt-auto">
+                      {(() => {
+                        const monthlyRooms = (property.rooms || []).filter((r: any) => (r.stay_type || 'monthly') === 'monthly');
+                        const leadRoom = monthlyRooms.length > 0
+                          ? [...monthlyRooms].sort((a, b) => (a.price || 0) - (b.price || 0))[0]
+                          : null;
+                        return (
+                          <>
+                            <div className="flex-1">
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-0.5">
+                                  <p className="text-xl font-black text-primary flex items-center leading-none">
+                                    <IndianRupee className="h-4 w-4 stroke-[3px]" />
+                                    {(leadRoom?.price ?? property.monthly_rent ?? 0).toLocaleString()}
+                                  </p>
+                                  <span className="text-primary text-[10px] font-bold uppercase tracking-wider">/mo</span>
+                                </div>
+                                {leadRoom && (
+                                  <span className="text-[10px] text-muted-foreground font-bold">
+                                    {leadRoom.room_type}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1 items-end">
+                              <span className="text-[10px] text-muted-foreground font-medium">
+                                Deposit: ₹{(leadRoom?.deposit ?? property.deposit ?? 0).toLocaleString()}
+                              </span>
+                              <div className="flex gap-1 text-muted-foreground/40">
+                                <Wifi className="h-4 w-4" />
+                                <Utensils className="h-4 w-4" />
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>

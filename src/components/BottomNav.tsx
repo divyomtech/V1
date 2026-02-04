@@ -55,15 +55,17 @@ const BottomNav = () => {
                     onClick={() => navigate('/favorites')}
                     className="flex flex-col items-center justify-center w-full h-full transition-colors relative"
                 >
-                    <Heart
-                        className={`h-6 w-6 transition-colors ${isActive('/favorites') ? 'text-primary' : 'text-muted-foreground'}`}
-                        fill={isActive('/favorites') ? 'currentColor' : 'none'}
-                    />
-                    {favorites.size > 0 && (
-                        <Badge className="absolute -top-1 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                            {favorites.size}
-                        </Badge>
-                    )}
+                    <div className="relative">
+                        <Heart
+                            className={`h-6 w-6 transition-colors ${isActive('/favorites') ? 'text-primary' : 'text-muted-foreground'}`}
+                            fill={isActive('/favorites') ? 'currentColor' : 'none'}
+                        />
+                        {favorites.size > 0 && (
+                            <Badge className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center p-0 text-[10px]">
+                                {favorites.size}
+                            </Badge>
+                        )}
+                    </div>
                     {isActive('/favorites') && <div className="absolute bottom-0 w-12 h-0.5 bg-primary rounded-t-full" />}
                 </button>
 
