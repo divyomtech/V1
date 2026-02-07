@@ -157,8 +157,9 @@ const OwnerWallet = () => {
     };
 
     // Check if transaction needs OTP verification
+    // Only show transactions where payment is done (otp_sent status) and OTP is generated
     const needsOTPVerification = (txn: WalletTransaction) => {
-        return (txn.status === 'pending' || txn.status === 'otp_sent') && !txn.otp_verified;
+        return txn.status === 'otp_sent' && !txn.otp_verified;
     };
 
     // Get pending transactions that need verification

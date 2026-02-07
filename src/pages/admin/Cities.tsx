@@ -183,7 +183,9 @@ const AdminCities = () => {
                 headers: {}
             }) as { url: string };
 
-            const imageUrl = response.url;
+            // Prepend API URL if the returned URL is a relative path
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const imageUrl = response.url.startsWith('/') ? `${apiUrl}${response.url}` : response.url;
             setFormData(prev => ({ ...prev, image_url: imageUrl }));
             toast({
                 title: 'Success',

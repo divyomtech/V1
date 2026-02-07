@@ -40,6 +40,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const SHARING_TYPES = ['Single Sharing', 'Double Sharing', 'Triple Sharing', '4-Share', 'Custom'];
 
@@ -74,7 +75,10 @@ const OwnerProperties = () => {
     monthly_price: '',
     daily_price: '',
     security_deposit: '',
-    room_description: ''
+    room_description: '',
+    area_sqft: '',
+    width_ft: '',
+    has_ventilation: true
   });
 
   useEffect(() => {
@@ -214,6 +218,9 @@ const OwnerProperties = () => {
         vacancy_count: bedCount, // All beds start as vacant
         room_description: newRoom.room_description,
         is_available: true,
+        area_sqft: parseInt(String(newRoom.area_sqft)) || null,
+        width_ft: parseInt(String(newRoom.width_ft)) || null,
+        has_ventilation: newRoom.has_ventilation,
       };
 
       if (editingRoomId) {
@@ -237,7 +244,10 @@ const OwnerProperties = () => {
         monthly_price: '',
         daily_price: '',
         security_deposit: '',
-        room_description: ''
+        room_description: '',
+        area_sqft: '',
+        width_ft: '',
+        has_ventilation: true
       });
     } catch (error: any) {
       toast({
@@ -260,7 +270,10 @@ const OwnerProperties = () => {
       monthly_price: String(room.monthly_price || room.price || 0),
       daily_price: String(room.daily_price || 0),
       security_deposit: String(room.security_deposit || 0),
-      room_description: room.room_description || ''
+      room_description: room.room_description || '',
+      area_sqft: String(room.area_sqft || ''),
+      width_ft: String(room.width_ft || ''),
+      has_ventilation: room.has_ventilation !== false
     });
     setAddRoomOpen(true);
   };
@@ -721,6 +734,39 @@ const OwnerProperties = () => {
                 value={newRoom.room_description}
                 onChange={(e) => setNewRoom({ ...newRoom, room_description: e.target.value })}
               />
+            </div>
+
+            {/* Room Dimensions */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Room Area (sq ft)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g., 150"
+                  value={newRoom.area_sqft || ''}
+                  onChange={(e) => setNewRoom({ ...newRoom, area_sqft: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Room Width (ft)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g., 12"
+                  value={newRoom.width_ft || ''}
+                  onChange={(e) => setNewRoom({ ...newRoom, width_ft: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="has_ventilation"
+                checked={newRoom.has_ventilation}
+                onCheckedChange={(checked) => setNewRoom({ ...newRoom, has_ventilation: checked === true })}
+              />
+              <Label htmlFor="has_ventilation" className="cursor-pointer">Has Ventilation (window/exhaust)</Label>
             </div>
           </div>
 

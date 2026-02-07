@@ -421,14 +421,16 @@ const PropertyDetail = () => {
                                 <Badge variant="outline" className="border-muted-foreground/30">{selectedRoom.width_ft || '---'} Ft Wide</Badge>
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ventilation</span>
-                              <div className="flex items-center gap-2 font-semibold">
-                                <Badge className={selectedRoom.has_ventilation !== false ? "bg-green-50 text-green-700 border-green-100" : "bg-red-50 text-red-700 border-red-100"}>
-                                  {selectedRoom.has_ventilation !== false ? 'Ventilated' : 'No Ventilation'}
-                                </Badge>
+                            {selectedRoom.has_ventilation !== false && (
+                              <div className="space-y-1">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ventilation</span>
+                                <div className="flex items-center gap-2 font-semibold">
+                                  <Badge className="bg-green-50 text-green-700 border-green-100">
+                                    Ventilated
+                                  </Badge>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         )}
 
@@ -471,27 +473,29 @@ const PropertyDetail = () => {
                               <Badge variant="secondary" className="text-[10px] py-0">{stayType === 'monthly' ? 'Monthly' : 'Daily'}</Badge>
                             </h3>
                             <div className="flex flex-wrap gap-2">
-                              {rooms.map((room) => {
-                                const isFull = room.vacancy_count === 0;
-                                const isLow = room.vacancy_count !== undefined && room.vacancy_count > 0 && room.vacancy_count <= 2;
+                              {/* Group rooms by type and show unique types */}
+                              {[...new Map(rooms.map(r => [r.room_type, r])).values()].map((room) => {
+                                // Find all rooms of this type to calculate total vacancies
+                                const allRoomsOfType = rooms.filter(r => r.room_type === room.room_type);
+                                const totalVacancy = allRoomsOfType.reduce((sum, r) => sum + (r.vacancy_count || 0), 0);
+                                const isFull = totalVacancy === 0;
+                                const isLow = totalVacancy > 0 && totalVacancy <= 2;
 
                                 return (
-                                  <div key={room.id} className="relative group">
+                                  <div key={room.room_type} className="relative group">
                                     <Button
-                                      variant={selectedRoom?.id === room.id ? 'default' : 'outline'}
+                                      variant={selectedRoom?.room_type === room.room_type ? 'default' : 'outline'}
                                       disabled={isFull}
                                       className={`
-                                        ${selectedRoom?.id === room.id ? 'bg-primary hover:bg-primary/90' : ''}
+                                        ${selectedRoom?.room_type === room.room_type ? 'bg-primary hover:bg-primary/90' : ''}
                                         ${isFull ? 'opacity-50 grayscale cursor-not-allowed' : ''}
                                       `}
-                                      onClick={() => setSelectedRoom(room)}
+                                      onClick={() => setSelectedRoom(allRoomsOfType.find(r => (r.vacancy_count || 0) > 0) || room)}
                                     >
                                       {room.room_type}
-                                      {room.vacancy_count !== undefined && (
-                                        <span className="ml-2 text-[10px] opacity-80">
-                                          ({isFull ? 'Full' : `${room.vacancy_count} left`})
-                                        </span>
-                                      )}
+                                      <span className="ml-2 text-[10px] opacity-80">
+                                        ({isFull ? 'Full' : `${totalVacancy} left`})
+                                      </span>
                                     </Button>
                                     {isLow && !isFull && (
                                       <Badge className="absolute -top-2 -right-2 px-1 text-[8px] bg-red-500 text-white animate-pulse">
@@ -551,10 +555,11 @@ const PropertyDetail = () => {
                               return (
                                 <Card
                                   key={room.id}
+                                  onClick={() => !isFull && setSelectedRoom(room)}
                                   className={`
-                                      transition-all duration-300 border-amber-200
+                                      transition-all duration-300 border-amber-200 cursor-pointer
                                       ${selectedRoom?.id === room.id ? 'ring-2 ring-primary border-primary bg-amber-50' : 'bg-white'}
-                                      ${isFull ? 'opacity-75 bg-muted/50' : 'hover:border-primary/50'}
+                                      ${isFull ? 'opacity-75 bg-muted/50 cursor-not-allowed' : 'hover:border-primary/50'}
                                     `}
                                 >
                                   <CardContent className="p-5">
@@ -569,9 +574,11 @@ const PropertyDetail = () => {
                                           Room {room.room_number}
                                         </Badge>
                                       )}
-                                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                                        Ventilated
-                                      </Badge>
+                                      {room.has_ventilation !== false && (
+                                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                                          Ventilated
+                                        </Badge>
+                                      )}
                                     </div>
 
                                     <div className="flex items-center justify-between">

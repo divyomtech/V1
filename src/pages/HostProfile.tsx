@@ -189,7 +189,7 @@ export default function HostProfile() {
                                         )}
                                         <span className="flex items-center gap-1">
                                             <Calendar className="h-4 w-4" />
-                                            {host.years_hosting}+ years hosting
+                                            {host.years_hosting > 0 ? `${host.years_hosting}+ years hosting` : 'New host'}
                                         </span>
                                     </div>
                                     {/* Star Rating */}
