@@ -68,6 +68,7 @@ export interface Property {
     description?: string;
     address: string;
     city: string;
+    city_id?: string;
     locality?: string;
     latitude?: number;
     longitude?: number;
