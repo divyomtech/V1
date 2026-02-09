@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, API_URL } from "@/lib/api";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,8 +86,6 @@ const Profile = () => {
 
   // Track original phone number to detect changes
   const [originalPhone, setOriginalPhone] = useState("");
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   // Helper to get full image URL
   const getImageUrl = (url: string) => {

@@ -10,9 +10,8 @@ import {
     ArrowLeft, Star, MapPin, Calendar, Phone, Mail, MessageSquare,
     Building2, Heart, CheckCircle, TrendingUp, Users, Clock, Loader2
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { API_URL } from '@/lib/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface HostProfile {
     id: string;
