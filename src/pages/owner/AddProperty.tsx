@@ -136,7 +136,6 @@ const AddProperty = () => {
             city: property.city || '',
             city_id: property.city_id || '',
             locality: property.locality || '',
-            locality: property.locality || '',
             monthly_rent: String(property.monthly_rent || ''),
             maintenance_charge: String(property.maintenance_charge || '0'),
             gender_preference: property.gender_preference || 'male',
