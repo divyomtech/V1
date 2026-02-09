@@ -17,8 +17,11 @@ async function request<T>(
     options: RequestInit = {}
 ): Promise<T> {
     const token = getToken();
+    const isFormData = options.body instanceof FormData;
+
+    // Don't set Content-Type for FormData - browser will auto-set with boundary
     const headers: HeadersInit = {
-        'Content-Type': 'application/json',
+        ...(!isFormData && { 'Content-Type': 'application/json' }),
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
     };

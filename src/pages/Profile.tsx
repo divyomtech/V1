@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, API_URL } from "@/lib/api";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,13 +79,13 @@ const Profile = () => {
     owner_available: true,
     available_from: "09:00",
     available_to: "21:00",
-    available_days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    available_days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    // Hosting experience
+    hosting_since: ""
   });
 
   // Track original phone number to detect changes
   const [originalPhone, setOriginalPhone] = useState("");
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   // Helper to get full image URL
   const getImageUrl = (url: string) => {
@@ -145,7 +145,9 @@ const Profile = () => {
           owner_available: data.owner_available !== false,
           available_from: data.available_from || "09:00",
           available_to: data.available_to || "21:00",
-          available_days: data.available_days || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+          available_days: data.available_days || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+          // Hosting experience
+          hosting_since: data.hosting_since || ""
         });
 
         // Load notification settings from API
@@ -228,6 +230,8 @@ const Profile = () => {
         updateData.available_from = profile.available_from;
         updateData.available_to = profile.available_to;
         updateData.available_days = profile.available_days;
+        // Hosting experience
+        updateData.hosting_since = profile.hosting_since || null;
       }
 
       // Add customer-specific fields
@@ -582,6 +586,19 @@ const Profile = () => {
                       />
                       <p className="text-sm text-muted-foreground">
                         Enter languages separated by commas. These will be displayed on your property listings.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="hosting_since">Hosting Since</Label>
+                      <Input
+                        id="hosting_since"
+                        type="date"
+                        value={profile.hosting_since}
+                        onChange={(e) => setProfile({ ...profile, hosting_since: e.target.value })}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        When did you start hosting? This will automatically calculate your hosting experience.
                       </p>
                     </div>
                   </CardContent>

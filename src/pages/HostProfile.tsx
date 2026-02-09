@@ -10,9 +10,8 @@ import {
     ArrowLeft, Star, MapPin, Calendar, Phone, Mail, MessageSquare,
     Building2, Heart, CheckCircle, TrendingUp, Users, Clock, Loader2
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { API_URL } from '@/lib/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface HostProfile {
     id: string;
@@ -189,7 +188,7 @@ export default function HostProfile() {
                                         )}
                                         <span className="flex items-center gap-1">
                                             <Calendar className="h-4 w-4" />
-                                            {host.years_hosting}+ years hosting
+                                            {host.years_hosting > 0 ? `${host.years_hosting}+ years hosting` : 'New host'}
                                         </span>
                                     </div>
                                     {/* Star Rating */}

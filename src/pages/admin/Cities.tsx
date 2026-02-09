@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -183,7 +183,8 @@ const AdminCities = () => {
                 headers: {}
             }) as { url: string };
 
-            const imageUrl = response.url;
+            // Prepend API URL if the returned URL is a relative path
+            const imageUrl = response.url.startsWith('/') ? `${API_URL}${response.url}` : response.url;
             setFormData(prev => ({ ...prev, image_url: imageUrl }));
             toast({
                 title: 'Success',
