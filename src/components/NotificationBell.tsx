@@ -37,8 +37,11 @@ export const NotificationBell = () => {
       const data = await api.getNotifications();
       setNotifications(data);
       setUnreadCount(data.filter(n => !n.read).length);
-    } catch (error) {
-      // Silently fail - notifications are not critical
+    } catch (error: any) {
+      // Stop polling if unauthorized (user not actually logged in)
+      if (error?.status === 401 || error?.message?.includes('401')) {
+        return;
+      }
     } finally {
       setLoading(false);
     }
@@ -47,11 +50,12 @@ export const NotificationBell = () => {
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      // Refresh notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
+      // Refresh notifications every 60 seconds (not 30s to reduce server load)
+      const interval = setInterval(fetchNotifications, 60000);
       return () => clearInterval(interval);
     }
-  }, [user, fetchNotifications]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const markAsRead = async (id: string) => {
     try {
