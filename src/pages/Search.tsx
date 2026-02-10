@@ -209,7 +209,7 @@ const Search = () => {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="male">Boys</SelectItem>
                   <SelectItem value="female">Girls</SelectItem>
-                  <SelectItem value="unisex">Co-living</SelectItem>
+                  <SelectItem value="mixed">Co-living</SelectItem>
                 </SelectContent>
               </Select>
 

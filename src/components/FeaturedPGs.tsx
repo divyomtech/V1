@@ -80,7 +80,7 @@ const FeaturedPGs = () => {
                 )}
                 <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
                   {property.gender_preference === 'male' ? 'Boys' :
-                    property.gender_preference === 'female' ? 'Girls' : 'Unisex'}
+                    property.gender_preference === 'female' ? 'Girls' : 'Co-living'}
                 </Badge>
                 {property.instant_booking && (
                   <Badge className="absolute top-3 left-3 bg-green-600">
