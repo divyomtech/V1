@@ -43,17 +43,24 @@ const Search = () => {
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedLocality, setSelectedLocality] = useState('all');
 
-  // City-Locality drill-down data
-  const cityLocalities: Record<string, string[]> = {
-    'Bangalore': ['Koramangala', 'HSR Layout', 'Indiranagar', 'Whitefield', 'Electronic City', 'BTM Layout', 'Marathahalli', 'JP Nagar'],
-    'Hyderabad': ['Gachibowli', 'Madhapur', 'Kondapur', 'Hitech City', 'Kukatpally', 'Banjara Hills', 'Jubilee Hills', 'Begumpet'],
-    'Mumbai': ['Andheri', 'Powai', 'Bandra', 'Malad', 'Goregaon', 'Lower Parel', 'Worli', 'Thane'],
-    'Delhi': ['Lajpat Nagar', 'Saket', 'Hauz Khas', 'Dwarka', 'Noida', 'Gurgaon', 'Rohini', 'Karol Bagh'],
-    'Chennai': ['Adyar', 'Velachery', 'OMR', 'T Nagar', 'Anna Nagar', 'Porur', 'Guindy', 'Thoraipakkam'],
-    'Pune': ['Hinjewadi', 'Kothrud', 'Wakad', 'Baner', 'Viman Nagar', 'Koregaon Park', 'Hadapsar', 'Magarpatta'],
-  };
+  // Dynamic city-locality data from backend
+  const [cityLocalities, setCityLocalities] = useState<Record<string, string[]>>({});
 
-  const cities = ['all', ...Object.keys(cityLocalities)];
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const citiesData = await api.getCities();
+        const cityMap: Record<string, string[]> = {};
+        citiesData.forEach((city: any) => {
+          cityMap[city.name] = (city.areas || []).map((a: any) => a.name);
+        });
+        setCityLocalities(cityMap);
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+    fetchCities();
+  }, []);
 
   useEffect(() => {
     fetchProperties();
