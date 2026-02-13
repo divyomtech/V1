@@ -124,12 +124,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
+      const message = error.message || "Verification failed";
+      // Check if the error suggests user should go back and sign up again
+      const shouldGoBack = message.includes("sign up again") ||
+        message.includes("expired") ||
+        message.includes("No pending verification");
       toast({
         variant: "destructive",
         title: "Verification failed",
-        description: error.message,
+        description: message,
+        duration: shouldGoBack ? 8000 : 5000, // Show longer for actionable errors
       });
-      return { error };
+      return { error, shouldGoBack };
     }
   };
 
@@ -188,6 +194,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setProfile(null);
     setRole(null);
+    // Clear all storage to ensure clean state
+    localStorage.clear();
+    sessionStorage.clear();
+    // Clear any cookies
+    document.cookie.split(';').forEach((c) => {
+      document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+    });
+    // Force page reload to reset all state
+    window.location.href = '/auth';
   };
 
   const resetPassword = async (email: string) => {
