@@ -46,6 +46,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { signUp, verifyEmail, resendOtp, signIn, signOut, resetPassword, confirmResetPassword, user, loading, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -168,29 +169,34 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm() || submitting) return;
+    setSubmitting(true);
 
-    if (view === 'login') {
-      const result = await signIn(email, password);
+    try {
+      if (view === 'login') {
+        const result = await signIn(email, password);
 
-      // If login was successful, validate role matches selected login mode
-      if (!result.error) {
-        // We need to check the role from the response
-        // The role is set in the auth context after successful login
-        // We'll validate in useEffect after role is updated
+        // If login was successful, validate role matches selected login mode
+        if (!result.error) {
+          // We need to check the role from the response
+          // The role is set in the auth context after successful login
+          // We'll validate in useEffect after role is updated
+        }
+      } else {
+        const result = await signUp(email, password, name, phone, signupRole);
+
+        // Check if email verification is required
+        if (!result.error && result.requiresVerification && result.email) {
+          setPendingEmail(result.email);
+          setPendingRole(result.role || signupRole);
+          setOtpCode('');
+          setView('verify-email-otp');
+          setCanResendOtp(false);
+          setResendCountdown(30);
+        }
       }
-    } else {
-      const result = await signUp(email, password, name, phone, signupRole);
-
-      // Check if email verification is required
-      if (!result.error && result.requiresVerification && result.email) {
-        setPendingEmail(result.email);
-        setPendingRole(result.role || signupRole);
-        setOtpCode('');
-        setView('verify-email-otp');
-        setCanResendOtp(false);
-        setResendCountdown(30);
-      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -450,8 +456,8 @@ const Auth = () => {
             </div>
 
             <div className="pt-6">
-              <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
-                Login
+              <Button type="submit" disabled={submitting} className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
+                {submitting ? 'Logging in...' : 'Login'}
               </Button>
             </div>
 
@@ -614,6 +620,13 @@ const Auth = () => {
             navigate('/');
           }
         }, 500); // Small delay to show success toast
+      } else if (result.shouldGoBack) {
+        // OTP expired, no record, or max attempts — auto-redirect to signup
+        setTimeout(() => {
+          setView('signup');
+          setOtpCode('');
+          setPendingEmail('');
+        }, 2000);
       }
     };
 
@@ -847,8 +860,8 @@ const Auth = () => {
           </div>
 
           <div className="pt-6">
-            <Button type="submit" className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
-              Get Started
+            <Button type="submit" disabled={submitting} className="w-full h-14 text-base font-semibold bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all rounded-xl">
+              {submitting ? 'Please wait...' : 'Get Started'}
             </Button>
           </div>
         </form>
